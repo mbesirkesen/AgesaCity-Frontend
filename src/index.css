@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pixel-art {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.city-building {
+  transform: none;
+  transform-origin: bottom center;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.28));
+}
