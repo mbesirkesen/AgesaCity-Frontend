@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
-import { getGoldenTowerAsset, getReferenceTileAsset, getTileForCell, getUnitForCell } from '../config/rpgAssetMap';
+import { getGoldenTowerAsset, getReferenceTileAsset, getTileForCell } from '../config/rpgAssetMap';
+import { MAX_STACK } from '../config/shopItems';
 import { useGame } from '../context/GameContext';
 
 export const GRID_COLS = 24;
@@ -28,7 +29,7 @@ const ROAD_CELLS = new Set(
 
 function DroppableTile({ row, col, tileSize, isRoad, placedItem, children }) {
   const cellKey = `${row}_${col}`;
-  const canDrop = !isRoad && !placedItem;
+  const canDrop = !isRoad && (!placedItem || (placedItem.reusable && (placedItem.stackCount || 1) < MAX_STACK));
   const { isOver, setNodeRef } = useDroppable({
     id: `cell-${cellKey}`,
     data: { row, col, canDrop },
@@ -65,25 +66,64 @@ function DroppableTile({ row, col, tileSize, isRoad, placedItem, children }) {
 
 // --- Placed item on map ---
 
+const STACK_LAYOUTS = {
+  1: [{ left: '50%', bottom: '0%', scale: 0.85 }],
+  2: [
+    { left: '30%', bottom: '0%', scale: 0.58 },
+    { left: '70%', bottom: '0%', scale: 0.58 },
+  ],
+  3: [
+    { left: '50%', bottom: '38%', scale: 0.48 },
+    { left: '26%', bottom: '0%', scale: 0.48 },
+    { left: '74%', bottom: '0%', scale: 0.48 },
+  ],
+  4: [
+    { left: '30%', bottom: '38%', scale: 0.44 },
+    { left: '70%', bottom: '38%', scale: 0.44 },
+    { left: '30%', bottom: '0%', scale: 0.44 },
+    { left: '70%', bottom: '0%', scale: 0.44 },
+  ],
+};
+
 function PlacedBuilding({ item, tileSize, onRemove }) {
+  const count = item.stackCount || 1;
+  const isStacked = item.reusable && count > 1;
+  const positions = STACK_LAYOUTS[count] || STACK_LAYOUTS[1];
+
   return (
     <motion.div
       initial={{ y: -120, opacity: 0, scale: 0.5 }}
       animate={{ y: 0, opacity: 1, scale: 1 }}
       exit={{ y: 20, opacity: 0, scale: 0.6 }}
       transition={{ type: 'spring', stiffness: 280, damping: 16 }}
-      className="group absolute bottom-0 left-1/2 z-10 -translate-x-1/2"
-      style={{ width: tileSize * 0.85, height: tileSize * 0.85 }}
+      className="group absolute inset-0 z-10"
     >
-      <img
-        src={item.asset}
-        alt={item.label}
-        className="h-full w-full object-contain pixel-art drop-shadow-md"
-        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-      />
+      {positions.map((pos, i) => (
+        <img
+          key={i}
+          src={item.asset}
+          alt={item.label}
+          className="absolute object-contain pixel-art drop-shadow-md"
+          style={{
+            width: tileSize * pos.scale,
+            height: tileSize * pos.scale,
+            left: pos.left,
+            bottom: pos.bottom,
+            transform: 'translateX(-50%)',
+          }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ))}
+
+      {isStacked && (
+        <span className="absolute left-0 top-0 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[8px] font-bold text-white shadow">
+          {count}
+        </span>
+      )}
+
       <button
         onClick={onRemove}
-        className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white shadow group-hover:flex"
+        className="absolute -right-1 -top-1 z-20 hidden h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white shadow group-hover:flex"
         title="Kaldır"
       >
         <Trash2 className="h-2.5 w-2.5" />
@@ -155,8 +195,6 @@ export default function CityMap({ disasterActive = false, disasterPulse = 0 }) {
           const isRoad = ROAD_CELLS.has(index);
           const cellKey = `${row}_${col}`;
           const placedItem = placedItems.get(cellKey);
-          const unitSrc = !isRoad && !placedItem ? getUnitForCell(row, col) : null;
-
           return (
             <DroppableTile
               key={`tile-${index}`}
@@ -173,14 +211,6 @@ export default function CityMap({ disasterActive = false, disasterPulse = 0 }) {
                     item={placedItem}
                     tileSize={tileSize}
                     onRemove={() => removeItem(row, col)}
-                  />
-                ) : unitSrc ? (
-                  <img
-                    key={`unit-${row}-${col}`}
-                    src={unitSrc}
-                    alt=""
-                    className="absolute bottom-0 pointer-events-none pixel-art"
-                    style={{ height: tileSize * 0.7, width: tileSize * 0.7 }}
                   />
                 ) : null}
               </AnimatePresence>

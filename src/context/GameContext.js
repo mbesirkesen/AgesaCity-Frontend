@@ -1,6 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { loadGameData, fetchCityStatus } from '../services/gameDataService';
-import { getLevelFromXP, getXPForNextLevel, SHOP_ITEMS } from '../config/shopItems';
+import { getLevelFromXP, getXPForNextLevel, MAX_STACK, SHOP_ITEMS } from '../config/shopItems';
 
 const GameContext = createContext(null);
 
@@ -220,7 +220,10 @@ export function GameProvider({ children }) {
 
     const instanceId = `${shopItem.id}_${Date.now()}`;
     setFinancialPoints((prev) => prev - shopItem.cost);
-    setInventory((prev) => [...prev, { ...shopItem, instanceId }]);
+    setInventory((prev) => {
+      if (shopItem.reusable && prev.some((i) => i.id === shopItem.id)) return prev;
+      return [...prev, { ...shopItem, instanceId }];
+    });
     return true;
   }, [xp, financialPoints]);
 
@@ -230,11 +233,23 @@ export function GameProvider({ children }) {
       const idx = prev.findIndex((item) => item.instanceId === instanceId);
       if (idx === -1) return prev;
       const item = prev[idx];
+
+      let didPlace = false;
       setPlacedItems((prevMap) => {
+        const existing = prevMap.get(key);
         const next = new Map(prevMap);
-        next.set(key, { ...item, row, col });
+        if (existing) {
+          if (!existing.reusable || !item.reusable || existing.id !== item.id || (existing.stackCount || 1) >= MAX_STACK) return prevMap;
+          next.set(key, { ...existing, stackCount: (existing.stackCount || 1) + 1 });
+        } else {
+          next.set(key, { ...item, instanceId: `${item.id}_${Date.now()}`, row, col, stackCount: 1 });
+        }
+        didPlace = true;
         return next;
       });
+
+      if (!didPlace) return prev;
+      if (item.reusable) return prev;
       return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     });
   }, []);
@@ -244,9 +259,15 @@ export function GameProvider({ children }) {
     setPlacedItems((prevMap) => {
       const item = prevMap.get(key);
       if (!item) return prevMap;
-      setInventory((prev) => [...prev, item]);
       const next = new Map(prevMap);
-      next.delete(key);
+      if (item.reusable && (item.stackCount || 1) > 1) {
+        next.set(key, { ...item, stackCount: item.stackCount - 1 });
+      } else {
+        if (!item.reusable) {
+          setInventory((prev) => [...prev, item]);
+        }
+        next.delete(key);
+      }
       return next;
     });
   }, []);
@@ -258,13 +279,33 @@ export function GameProvider({ children }) {
     if (shopItem.cost > financialPoints) return false;
 
     const key = `${row}_${col}`;
-    const instanceId = `${shopItem.id}_${Date.now()}`;
-    setFinancialPoints((prev) => prev - shopItem.cost);
+    let placed = false;
+
     setPlacedItems((prevMap) => {
+      const existing = prevMap.get(key);
       const next = new Map(prevMap);
-      next.set(key, { ...shopItem, instanceId, row, col });
+
+      if (existing) {
+        if (!existing.reusable || !shopItem.reusable || existing.id !== shopItem.id || (existing.stackCount || 1) >= MAX_STACK) return prevMap;
+        next.set(key, { ...existing, stackCount: (existing.stackCount || 1) + 1 });
+      } else {
+        const instanceId = `${shopItem.id}_${Date.now()}`;
+        next.set(key, { ...shopItem, instanceId, row, col, stackCount: 1 });
+      }
+      placed = true;
       return next;
     });
+
+    if (!placed) return false;
+
+    setFinancialPoints((prev) => prev - shopItem.cost);
+    if (shopItem.reusable) {
+      setInventory((prev) => {
+        if (prev.some((i) => i.id === shopItem.id)) return prev;
+        const invInstanceId = `${shopItem.id}_inv_${Date.now()}`;
+        return [...prev, { ...shopItem, instanceId: invInstanceId }];
+      });
+    }
     return true;
   }, [xp, financialPoints]);
 

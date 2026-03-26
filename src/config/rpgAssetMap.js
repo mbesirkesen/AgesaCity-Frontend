@@ -7,8 +7,7 @@ const unit = (id) => `${BASE}/Unit/medievalUnit_${pad2(id)}.png`;
 
 // Tile klasoru: sadece zemin/yol varyasyonlari
 const TILE_POOLS = {
-  groundPark: [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 57, 58].map(tile),
-  groundBlock: [55, 56].map(tile),
+  grass: [57, 58].map(tile),
 };
 
 // Yol tile'lari: komsuluk bagina gore dogru parca secilir
@@ -81,10 +80,7 @@ export function getTileForCell({ row, col, isRoad, hasUp, hasDown, hasLeft, hasR
     return { src: entry, flipX: false };
   }
 
-  const distanceToCenter = Math.abs(row - 6) + Math.abs(col - 12);
-  const src = distanceToCenter <= 6
-    ? pickFromPool(TILE_POOLS.groundBlock, seed)
-    : pickFromPool(TILE_POOLS.groundPark, seed);
+  const src = pickFromPool(TILE_POOLS.grass, seed);
   return { src, flipX: false };
 }
 

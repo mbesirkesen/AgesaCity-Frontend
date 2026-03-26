@@ -20,10 +20,15 @@ function DraggableInventoryItem({ item }) {
       style={style}
       {...listeners}
       {...attributes}
-      className="flex h-12 w-12 shrink-0 cursor-grab items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50 active:cursor-grabbing"
+      className="relative flex h-12 w-12 shrink-0 cursor-grab items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50 active:cursor-grabbing"
       title={item.label}
     >
       <img src={item.asset} alt={item.label} className="h-9 w-9 object-contain pixel-art" />
+      {item.reusable && (
+        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">
+          ∞
+        </span>
+      )}
     </div>
   );
 }
