@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Coins, HeartPulse, Star, UserCircle2 } from 'lucide-react';
 import CityMap from './components/CityMap';
+import DashboardPanel from './components/DashboardPanel';
 import InventoryBar from './components/InventoryBar';
 import KnowledgeCenter from './components/KnowledgeCenter';
 import ShopPanel from './components/ShopPanel';
 import SimulationOverlay from './components/SimulationOverlay';
+import SpendingForm from './components/SpendingForm';
 import { SHOP_ITEMS } from './config/shopItems';
 import { useGame } from './context/GameContext';
 
@@ -36,6 +38,7 @@ function App() {
   const [simulationMsg, setSimulationMsg] = useState('');
   const [disasterPulse, setDisasterPulse] = useState(0);
   const [manualDisaster, setManualDisaster] = useState(false);
+  const [disasterReport, setDisasterReport] = useState(null);
   const [activeDragItem, setActiveDragItem] = useState(null);
 
   const disasterActive = manualDisaster || cityState.healthScore < 50;
@@ -52,7 +55,15 @@ function App() {
   async function handleDisaster() {
     setManualDisaster(true);
     setDisasterPulse((prev) => prev + 1);
-    await triggerDisasterApi(2);
+    setDisasterReport(null);
+    const result = await triggerDisasterApi(2);
+    if (result) {
+      setDisasterReport({
+        fpLost: result.fp_penalty_applied ?? 0,
+        damaged: result.city_damage?.city_items_damaged ?? 0,
+        removed: result.city_damage?.removed_items?.length ?? 0,
+      });
+    }
     window.setTimeout(() => setManualDisaster(false), 1500);
   }
 
@@ -61,7 +72,7 @@ function App() {
     if (result?.error) {
       setSimulationMsg('Bugün simülasyon zaten çalıştırıldı.');
     } else if (result) {
-      setSimulationValue(result.projected_fund_10y || result.projected_fund_20y);
+      setSimulationValue(result.projected_fund_tl);
       setSimulationMsg('');
     }
   }
@@ -147,6 +158,17 @@ function App() {
             {/* Harita */}
             <CityMap disasterActive={disasterActive} disasterPulse={disasterPulse} />
 
+            {disasterReport && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                <p className="font-semibold">Felaket Hasar Raporu</p>
+                <p>FP kaybı: -{disasterReport.fpLost} FP</p>
+                {disasterReport.removed > 0 && (
+                  <p>{disasterReport.removed} bina yıkıldı!</p>
+                )}
+                <button onClick={() => setDisasterReport(null)} className="mt-1 text-xs text-rose-500 underline">Kapat</button>
+              </div>
+            )}
+
             {/* Simülasyon */}
             <SimulationOverlay
               principal={cityState.totalSavings}
@@ -156,6 +178,12 @@ function App() {
               onWithdrawSavings={handleDisaster}
               simulationMsg={simulationMsg}
             />
+
+            {/* Harcama Ekleme */}
+            <SpendingForm />
+
+            {/* Dashboard Analizi */}
+            <DashboardPanel />
 
             {/* Bilgi Merkezi */}
             <KnowledgeCenter />

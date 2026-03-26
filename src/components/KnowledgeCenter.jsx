@@ -13,6 +13,7 @@ export default function KnowledgeCenter() {
   const [correctCount, setCorrectCount] = useState(0);
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [lastReward, setLastReward] = useState(null);
+  const [expandedContent, setExpandedContent] = useState(null);
 
   const questionsWithOptions = useMemo(() => {
     if (!quizzes.length || !quizOptions.length) return [];
@@ -71,15 +72,47 @@ export default function KnowledgeCenter() {
         <div className="mb-4">
           <h3 className="mb-2 text-sm font-medium text-slate-600">Öğrenme İçerikleri</h3>
           <ul className="grid gap-2 md:grid-cols-2">
-            {learningContents.slice(0, 6).map((item) => (
-              <li
-                key={item.content_id || item.id}
-                className="rounded-md border border-slate-200 bg-slate-50 p-3"
-              >
-                <p className="text-sm font-medium text-slate-800">{item.title}</p>
-                <p className="text-xs text-slate-500">{item.content_type || 'content'}</p>
-              </li>
-            ))}
+            {learningContents.slice(0, 6).map((item) => {
+              const id = item.content_id || item.id;
+              const isExpanded = expandedContent === id;
+              return (
+                <li
+                  key={id}
+                  className="cursor-pointer rounded-md border border-slate-200 bg-slate-50 p-3 transition-colors hover:border-indigo-200 hover:bg-indigo-50/30"
+                  onClick={() => setExpandedContent(isExpanded ? null : id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        {item.module_title && (
+                          <span className="text-[10px] text-indigo-500">{item.module_title}</span>
+                        )}
+                        <span className="text-xs text-slate-500">{item.content_type || 'content'}</span>
+                        {item.estimated_time_min && (
+                          <span className="text-[10px] text-slate-400">{item.estimated_time_min} dk</span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                  </div>
+                  <AnimatePresence>
+                    {isExpanded && item.body_text && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="mt-2 border-t border-slate-200 pt-2 text-xs leading-relaxed text-slate-600">
+                          {item.body_text}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

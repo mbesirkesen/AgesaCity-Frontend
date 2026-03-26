@@ -96,9 +96,11 @@ function calculateCityState({ selectedUser, spendings, scenarios, backendCitySta
     totalSavings: Math.round(projectedSavings),
     healthScore,
     buildingList,
-    roadQualityIndex: ground?.road_quality_index ?? 50,
-    skyStatus: ground?.sky_status ?? 'Acik',
+    roadQualityIndex: ground?.road_quality ?? ground?.road_quality_index ?? 50,
+    skyStatus: ground?.sky_mood ?? ground?.sky_status ?? 'Acik',
     totalSpending: ground?.total_spending ?? 0,
+    keyfiRatio: ground?.keyfi_ratio ?? 0,
+    junkShopCount: ground?.junk_shop_count ?? 0,
   };
 }
 
@@ -207,6 +209,25 @@ export function GameProvider({ children }) {
         if (typeof backendXP === 'number') setXP(backendXP);
         if (typeof backendFP === 'number') setFinancialPoints(backendFP);
         if (data?.dashboard) setDashboard(data.dashboard);
+
+        const backendCity = data?.city?.placed_items;
+        if (Array.isArray(backendCity) && backendCity.length > 0) {
+          const cityMap = new Map();
+          for (const item of backendCity) {
+            const key = `${item.row}_${item.col}`;
+            const shopItem = SHOP_ITEMS.find((s) => s.id === item.item_id);
+            cityMap.set(key, {
+              ...(shopItem || {}),
+              id: item.item_id,
+              label: item.item_name || shopItem?.label || item.item_id,
+              instanceId: item.placement_id || `${item.item_id}_${Date.now()}`,
+              row: item.row,
+              col: item.col,
+              stackCount: 1,
+            });
+          }
+          setPlacedItems(cityMap);
+        }
       })
       .catch(() => { /* backend unavailable, keep local state */ });
 
@@ -401,15 +422,25 @@ export function GameProvider({ children }) {
     try {
       const result = await triggerDisasterApi(selectedUserId, severity);
       const data = result?.data;
-      if (data?.fp_penalty) {
-        setFinancialPoints((prev) => Math.max(0, prev - data.fp_penalty));
+      if (data?.fp_penalty_applied) {
+        setFinancialPoints((prev) => Math.max(0, prev - data.fp_penalty_applied));
+      }
+      const removed = data?.city_damage?.removed_items;
+      if (Array.isArray(removed) && removed.length > 0) {
+        setPlacedItems((prevMap) => {
+          const next = new Map(prevMap);
+          for (const item of removed) {
+            next.delete(`${item.row}_${item.col}`);
+          }
+          return next;
+        });
       }
       return data;
     } catch {
-      spendFinancialPoints(100, 'Felaket', 'disaster_fallback');
+      setFinancialPoints((prev) => Math.max(0, prev - 100));
       return null;
     }
-  }, [selectedUserId, spendFinancialPoints]);
+  }, [selectedUserId]);
 
   // --- Refresh dashboard ---
 
