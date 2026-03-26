@@ -25,8 +25,6 @@ const ROAD_CELLS = new Set(
   }),
 );
 
-// --- Droppable tile wrapper ---
-
 function DroppableTile({ row, col, tileSize, isRoad, placedItem, children }) {
   const cellKey = `${row}_${col}`;
   const canDrop = !isRoad && (!placedItem || (placedItem.reusable && (placedItem.stackCount || 1) < MAX_STACK));
@@ -37,20 +35,18 @@ function DroppableTile({ row, col, tileSize, isRoad, placedItem, children }) {
   });
 
   const hasUp = row > 0 && isRoadCell(row - 1, col);
-    const hasDown = row < GRID_ROWS - 1 && isRoadCell(row + 1, col);
-    const hasLeft = col > 0 && isRoadCell(row, col - 1);
-    const hasRight = col < GRID_COLS - 1 && isRoadCell(row, col + 1);
+  const hasDown = row < GRID_ROWS - 1 && isRoadCell(row + 1, col);
+  const hasLeft = col > 0 && isRoadCell(row, col - 1);
+  const hasRight = col < GRID_COLS - 1 && isRoadCell(row, col + 1);
 
   const tileData = getTileForCell({ row, col, isRoad, hasUp, hasDown, hasLeft, hasRight });
 
   return (
     <div
       ref={setNodeRef}
-      className={`relative flex items-end justify-center overflow-hidden rounded-[6px] border ${
-        isRoad
-          ? 'border-slate-600 bg-slate-700'
-          : 'border-emerald-200 bg-gradient-to-b from-emerald-100 to-emerald-200'
-      } ${isOver && canDrop ? 'ring-2 ring-emerald-400' : ''} ${isOver && !canDrop ? 'ring-2 ring-rose-400' : ''}`}
+      className={`relative flex items-end justify-center overflow-hidden rounded-[3px] ${
+        isOver && canDrop ? 'ring-2 ring-[var(--gold)]' : ''
+      } ${isOver && !canDrop ? 'ring-2 ring-[var(--accent-red)]' : ''}`}
       style={{ height: `${tileSize}px` }}
     >
       <img
@@ -63,8 +59,6 @@ function DroppableTile({ row, col, tileSize, isRoad, placedItem, children }) {
     </div>
   );
 }
-
-// --- Placed item on map ---
 
 const STACK_LAYOUTS = {
   1: [{ left: '50%', bottom: '0%', scale: 0.85 }],
@@ -116,14 +110,14 @@ function PlacedBuilding({ item, tileSize, onRemove }) {
       ))}
 
       {isStacked && (
-        <span className="absolute left-0 top-0 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[8px] font-bold text-white shadow">
+        <span className="absolute left-0 top-0 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--gold)] text-[8px] font-bold text-[#1a1207] shadow">
           {count}
         </span>
       )}
 
       <button
         onClick={onRemove}
-        className="absolute -right-1 -top-1 z-20 hidden h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white shadow group-hover:flex"
+        className="absolute -right-1 -top-1 z-20 hidden h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-red)] text-white shadow group-hover:flex"
         title="Kaldır"
       >
         <Trash2 className="h-2.5 w-2.5" />
@@ -131,8 +125,6 @@ function PlacedBuilding({ item, tileSize, onRemove }) {
     </motion.div>
   );
 }
-
-// --- Main CityMap ---
 
 export default function CityMap({ disasterActive = false, disasterPulse = 0 }) {
   const { placedItems, removeItem } = useGame();
@@ -165,21 +157,24 @@ export default function CityMap({ disasterActive = false, disasterPulse = 0 }) {
     <motion.section
       animate={shouldShake ? { x: [0, -12, 10, -8, 6, 0] } : { x: 0 }}
       transition={{ duration: 0.45 }}
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="rpg-panel-dark overflow-hidden p-4"
     >
       <div className="mb-3">
-        <h2 className="text-lg font-semibold text-slate-900">City Map</h2>
-        <p className="text-sm text-slate-600">
+        <h2 className="font-medieval text-lg font-semibold text-[var(--text-gold)]">City Map</h2>
+        <p className="text-sm text-[var(--text-light)] opacity-50">
           Envanterden sürükleyip boş parsellere bırak.
         </p>
       </div>
 
       <div
         ref={gridRef}
-        className={`grid gap-[3px] rounded-xl bg-gradient-to-b p-2 ${
-          disasterActive ? 'from-zinc-200 to-zinc-300' : 'from-slate-100 to-slate-200'
-        }`}
-        style={{ gridTemplateColumns: `repeat(${GRID_COLS}, ${tileSize}px)` }}
+        className="grid gap-[3px] rounded-lg p-2"
+        style={{
+          gridTemplateColumns: `repeat(${GRID_COLS}, ${tileSize}px)`,
+          background: disasterActive
+            ? 'linear-gradient(180deg, #2a1a1a, #1e1010)'
+            : 'linear-gradient(180deg, #1e2a1e, #101e10)',
+        }}
       >
         <img
           src={getReferenceTileAsset()}

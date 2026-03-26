@@ -41,14 +41,14 @@ export default function SpendingForm() {
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section className="rpg-panel-dark">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 p-4 text-left"
       >
-        <Receipt className="h-5 w-5 text-violet-500" />
-        <span className="text-sm font-semibold text-slate-900">Harcama Ekle</span>
-        <span className="ml-auto text-slate-400">{open ? '−' : '+'}</span>
+        <Receipt className="h-5 w-5 text-[var(--gold)]" />
+        <span className="font-medieval text-sm font-semibold text-[var(--text-gold)]">Harcama Ekle</span>
+        <span className="ml-auto text-[#8b7355]">{open ? '−' : '+'}</span>
       </button>
 
       <AnimatePresence>
@@ -57,12 +57,13 @@ export default function SpendingForm() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-slate-100 px-4 pb-4"
+            className="overflow-hidden px-4 pb-4"
             onSubmit={handleSubmit}
           >
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <hr className="rpg-divider mb-3" />
+            <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Tutar (TL)</label>
+                <label className="mb-1 block text-xs font-medium text-[#8b7355]">Tutar (TL)</label>
                 <input
                   type="number"
                   min="1"
@@ -71,15 +72,15 @@ export default function SpendingForm() {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="150"
                   required
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  className="rpg-input w-full text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Kategori</label>
+                <label className="mb-1 block text-xs font-medium text-[#8b7355]">Kategori</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  className="rpg-input w-full text-sm"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -90,7 +91,7 @@ export default function SpendingForm() {
                 <button
                   type="submit"
                   disabled={submitting || !amount}
-                  className="flex w-full items-center justify-center gap-1 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:bg-slate-300"
+                  className="rpg-btn flex w-full items-center justify-center gap-1 text-sm"
                 >
                   <Plus className="h-4 w-4" />
                   {submitting ? 'Ekleniyor...' : 'Ekle'}
@@ -104,8 +105,10 @@ export default function SpendingForm() {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className={`mt-2 flex items-center justify-between rounded-lg p-2 text-xs ${
-                    result.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                  className={`mt-2 flex items-center justify-between rounded-md p-2 text-xs ${
+                    result.ok
+                      ? 'border border-emerald-700/30 bg-emerald-900/20 text-emerald-400'
+                      : 'border border-rose-700/30 bg-rose-900/20 text-rose-400'
                   }`}
                 >
                   <span>{result.msg}</span>

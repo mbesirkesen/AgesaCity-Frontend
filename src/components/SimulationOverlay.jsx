@@ -23,48 +23,42 @@ export default function SimulationOverlay({
   );
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rpg-panel-dark p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">10 Yillik Simulasyon</h2>
-        <span className="text-xs text-slate-500">FV = P * (1 + r)^n</span>
+        <h2 className="font-medieval text-lg font-semibold text-[var(--text-gold)]">10 Yıllık Simülasyon</h2>
+        <span className="rpg-badge">FV = P * (1 + r)^n</span>
       </div>
 
-      <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-3">
-        <p>Baslangic (P): {principal.toLocaleString('tr-TR')} TL</p>
-        <p>Yillik getiri (r): %{(annualReturn * 100).toFixed(2)}</p>
-        <p>Donem (n): {years} yil</p>
+      <div className="grid gap-2 text-sm text-[var(--text-light)] opacity-70 md:grid-cols-3">
+        <p>Başlangıç (P): {principal.toLocaleString('tr-TR')} TL</p>
+        <p>Yıllık getiri (r): %{(annualReturn * 100).toFixed(2)}</p>
+        <p>Dönem (n): {years} yıl</p>
       </div>
 
       <motion.p
         key={futureValue}
         initial={{ scale: 0.9, opacity: 0.4 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="mt-3 text-xl font-bold text-indigo-700"
+        className="mt-3 font-medieval text-xl font-bold text-[var(--gold-light)]"
       >
-        10 yil sonrasi: {futureValue.toLocaleString('tr-TR')} TL
+        10 yıl sonrası: {futureValue.toLocaleString('tr-TR')} TL
       </motion.p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          onClick={onRunSimulation}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          10 Yil Ileri Sar
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button onClick={onRunSimulation} className="rpg-btn">
+          10 Yıl İleri Sar
         </button>
-        <button
-          onClick={onWithdrawSavings}
-          className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
-        >
-          Birikim Cek (Felaket Testi)
+        <button onClick={onWithdrawSavings} className="rpg-btn rpg-btn-danger">
+          Birikim Çek (Felaket Testi)
         </button>
       </div>
 
       {simulationMsg && (
-        <p className="mt-2 text-xs font-medium text-amber-600">{simulationMsg}</p>
+        <p className="mt-2 text-xs font-medium text-[var(--gold)]">{simulationMsg}</p>
       )}
 
-      <p className="mt-3 text-xs text-slate-500">
-        Health score {healthScore > 80 ? '80 uzeri, gokdelen seviyesi acik.' : '80 alti, gokdelen kilitli.'}
+      <p className="mt-3 text-xs text-[#8b7355]">
+        Health score {healthScore > 80 ? '80 üzeri, gökdelen seviyesi açık.' : '80 altı, gökdelen kilitli.'}
       </p>
     </section>
   );

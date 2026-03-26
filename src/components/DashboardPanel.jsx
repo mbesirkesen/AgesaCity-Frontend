@@ -5,16 +5,16 @@ import {
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 
-function LayerCard({ icon: Icon, title, color, children }) {
+function LayerCard({ icon: Icon, title, children }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-xl border p-4 shadow-sm ${color}`}
+      className="rpg-panel-dark p-4"
     >
       <div className="mb-3 flex items-center gap-2">
-        <Icon className="h-5 w-5" />
-        <h3 className="text-sm font-bold">{title}</h3>
+        <Icon className="h-5 w-5 text-[var(--gold)]" />
+        <h3 className="font-medieval text-sm font-bold text-[var(--text-gold)]">{title}</h3>
       </div>
       {children}
     </motion.div>
@@ -24,17 +24,23 @@ function LayerCard({ icon: Icon, title, color, children }) {
 function StatRow({ label, value }) {
   return (
     <div className="flex items-center justify-between py-1">
-      <span className="text-xs text-slate-600">{label}</span>
-      <span className="text-sm font-semibold">{value}</span>
+      <span className="text-xs text-[#8b7355]">{label}</span>
+      <span className="text-sm font-semibold text-[var(--text-light)]">{value}</span>
     </div>
   );
 }
 
-function ProgressBar({ value, max = 100, color = 'bg-indigo-500' }) {
+function ProgressBar({ value, max = 100, variant = 'gold' }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  const fillClass = {
+    gold: 'rpg-progress-fill',
+    green: 'rpg-progress-fill rpg-progress-fill-green',
+    blue: 'rpg-progress-fill rpg-progress-fill-blue',
+  }[variant] || 'rpg-progress-fill';
+
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+    <div className="rpg-progress">
+      <div className={fillClass} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -51,57 +57,53 @@ export default function DashboardPanel() {
 
   return (
     <section className="space-y-4">
-      <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-        <BarChart3 className="h-5 w-5 text-indigo-500" />
+      <h2 className="flex items-center gap-2 font-medieval text-lg font-semibold text-[var(--text-gold)]">
+        <BarChart3 className="h-5 w-5 text-[var(--gold)]" />
         Şehir Analizi
       </h2>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Layer 1: Şehir Zemin */}
         {layer1 && (
-          <LayerCard icon={Route} title="Şehir Zemini" color="border-slate-200 bg-white">
+          <LayerCard icon={Route} title="Şehir Zemini">
             <div className="space-y-1">
               <StatRow label="Yol Kalitesi" value={`${layer1.road_quality ?? cityState.roadQualityIndex}/100`} />
-              <ProgressBar value={layer1.road_quality ?? cityState.roadQualityIndex} color="bg-slate-600" />
+              <ProgressBar value={layer1.road_quality ?? cityState.roadQualityIndex} variant="gold" />
               <StatRow label="Gökyüzü" value={layer1.sky_mood ?? cityState.skyStatus} />
               <div className="mt-2 flex items-center gap-2 text-xs">
-                <CloudSun className="h-3.5 w-3.5 text-sky-500" />
-                <span className="text-slate-500">
+                <CloudSun className="h-3.5 w-3.5 text-sky-400" />
+                <span className="text-[#8b7355]">
                   Keyfi harcama oranı: %{((layer1.keyfi_ratio ?? cityState.keyfiRatio) * 100).toFixed(0)}
                 </span>
               </div>
               {(layer1.junk_shop_count ?? 0) > 0 && (
                 <div className="flex items-center gap-2 text-xs">
-                  <ShoppingBag className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-amber-700">{layer1.junk_shop_count} çöp dükkanı belirdi</span>
+                  <ShoppingBag className="h-3.5 w-3.5 text-[var(--gold)]" />
+                  <span className="text-[var(--gold)]">{layer1.junk_shop_count} çöp dükkanı belirdi</span>
                 </div>
               )}
             </div>
           </LayerCard>
         )}
 
-        {/* Layer 2: Eğitim */}
         {layer2 && (
-          <LayerCard icon={GraduationCap} title="Eğitim İlerlemesi" color="border-indigo-100 bg-indigo-50/50">
+          <LayerCard icon={GraduationCap} title="Eğitim İlerlemesi">
             <div className="space-y-1">
               <StatRow label="Eğitim Skoru" value={`${layer2.education_score ?? 0}/100`} />
-              <ProgressBar value={layer2.education_score ?? 0} color="bg-indigo-500" />
+              <ProgressBar value={layer2.education_score ?? 0} variant="blue" />
               {layer2.unlocked_buildings && (
                 <div className="mt-2">
-                  <p className="mb-1 text-xs font-medium text-slate-500">Açılan binalar:</p>
+                  <p className="mb-1 text-xs font-medium text-[#8b7355]">Açılan binalar:</p>
                   <div className="flex flex-wrap gap-1">
                     {(Array.isArray(layer2.unlocked_buildings) ? layer2.unlocked_buildings : []).map((b, i) => (
-                      <span key={i} className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
-                        {b}
-                      </span>
+                      <span key={i} className="rpg-badge">{b}</span>
                     ))}
                   </div>
                 </div>
               )}
               {layer2.next_building && (
                 <div className="mt-2 flex items-center gap-2 text-xs">
-                  <Building2 className="h-3.5 w-3.5 text-indigo-400" />
-                  <span className="text-indigo-600">
+                  <Building2 className="h-3.5 w-3.5 text-[var(--gold)]" />
+                  <span className="text-[var(--gold)]">
                     Sıradaki: {layer2.next_building}
                     {layer2.xp_to_next ? ` (${layer2.xp_to_next} XP)` : ''}
                   </span>
@@ -111,18 +113,17 @@ export default function DashboardPanel() {
           </LayerCard>
         )}
 
-        {/* Layer 3: Yeşil Alan / Tasarruf */}
         {layer3 && (
-          <LayerCard icon={Leaf} title="Tasarruf & Yeşil Alan" color="border-emerald-100 bg-emerald-50/50">
+          <LayerCard icon={Leaf} title="Tasarruf & Yeşil Alan">
             <div className="space-y-1">
               <StatRow label="Yeşil Skor" value={`${layer3.green_score ?? 0}/100`} />
-              <ProgressBar value={layer3.green_score ?? 0} color="bg-emerald-500" />
+              <ProgressBar value={layer3.green_score ?? 0} variant="green" />
               <StatRow label="Toplam Tasarruf" value={`${(layer3.total_saved_tl ?? 0).toLocaleString('tr-TR')} TL`} />
               <StatRow label="Yeşil Alan" value={`${layer3.green_area_m2 ?? 0} m²`} />
               {Array.isArray(layer3.green_events) && layer3.green_events.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {layer3.green_events.map((event, i) => (
-                    <p key={i} className="rounded bg-emerald-100 p-1.5 text-[11px] text-emerald-800">{event}</p>
+                    <p key={i} className="rounded-md border border-emerald-700/30 bg-emerald-900/20 p-1.5 text-[11px] text-emerald-400">{event}</p>
                   ))}
                 </div>
               )}
@@ -130,9 +131,8 @@ export default function DashboardPanel() {
           </LayerCard>
         )}
 
-        {/* Layer 4: BES Projeksiyonu */}
         {layer4 && (
-          <LayerCard icon={PiggyBank} title="BES Projeksiyonu" color="border-amber-100 bg-amber-50/50">
+          <LayerCard icon={PiggyBank} title="BES Projeksiyonu">
             <div className="space-y-1">
               <StatRow label="Aylık Katkı" value={`${(layer4.monthly_contrib_tl ?? 0).toLocaleString('tr-TR')} TL`} />
               <StatRow label="Projeksiyon (20 yıl)" value={`${(layer4.projected_fund_tl ?? 0).toLocaleString('tr-TR')} TL`} />
@@ -143,7 +143,7 @@ export default function DashboardPanel() {
                 <StatRow label="Risk Profili" value={layer4.risk_profile} />
               )}
               {layer4.bes_summary && (
-                <p className="mt-2 rounded bg-amber-100 p-2 text-[11px] text-amber-800">{layer4.bes_summary}</p>
+                <p className="mt-2 rounded-md border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-2 text-[11px] text-[var(--gold)]">{layer4.bes_summary}</p>
               )}
             </div>
           </LayerCard>

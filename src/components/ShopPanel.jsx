@@ -22,16 +22,16 @@ function DraggableShopItem({ item, disabled }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-2 rounded-lg border p-2 transition-colors ${
+      className={`flex items-center gap-2 rounded-md border p-2 transition-all ${
         disabled
-          ? 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-50'
-          : 'cursor-grab border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 active:cursor-grabbing'
+          ? 'cursor-not-allowed border-[#3d2b1f]/30 bg-[#1e1608] opacity-40'
+          : 'cursor-grab border-[var(--border-wood)]/40 bg-[#2a1f0e] hover:border-[var(--gold)]/60 hover:bg-[#3a2f1e] active:cursor-grabbing'
       }`}
     >
       <img src={item.asset} alt={item.label} className="h-8 w-8 object-contain pixel-art" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-slate-800">{item.label}</p>
-        <p className="flex items-center gap-1 text-[10px] text-slate-500">
+        <p className="truncate text-xs font-medium text-[var(--text-light)]">{item.label}</p>
+        <p className="flex items-center gap-1 text-[10px] text-[var(--gold)]/70">
           <Coins className="h-3 w-3" /> {item.cost} FP
         </p>
       </div>
@@ -41,14 +41,14 @@ function DraggableShopItem({ item, disabled }) {
 
 function LockedShopItem({ item }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 opacity-40">
+    <div className="flex items-center gap-2 rounded-md border border-[#3d2b1f]/20 bg-[#1e1608] p-2 opacity-30">
       <div className="relative h-8 w-8">
         <img src={item.asset} alt="" className="h-full w-full object-contain pixel-art grayscale" />
-        <Lock className="absolute -right-1 -top-1 h-3.5 w-3.5 text-slate-500" />
+        <Lock className="absolute -right-1 -top-1 h-3.5 w-3.5 text-[#8b7355]" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-slate-400">{item.label}</p>
-        <p className="text-[10px] text-slate-400">Level {item.requiredLevel}</p>
+        <p className="truncate text-xs font-medium text-[#8b7355]">{item.label}</p>
+        <p className="text-[10px] text-[#8b7355]">Level {item.requiredLevel}</p>
       </div>
     </div>
   );
@@ -79,47 +79,43 @@ export default function ShopPanel() {
   };
 
   function handleBuy(shopItemId) {
-    const ok = buyItem(shopItemId);
-    if (!ok) return;
+    buyItem(shopItemId);
   }
 
   return (
-    <aside className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+    <aside className="flex h-full flex-col">
       {/* Header: Level + XP */}
-      <div className="border-b border-slate-100 p-3">
+      <div className="mb-3 rounded-lg border border-[var(--border-wood)]/40 bg-[#2a1f0e] p-3">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Star className="h-4 w-4 text-amber-500" />
-            <span className="text-sm font-bold text-slate-900">Level {level}</span>
+            <Star className="h-4 w-4 text-[var(--gold)]" />
+            <span className="font-medieval text-sm font-bold text-[var(--text-gold)]">Level {level}</span>
           </div>
-          <span className="text-xs text-slate-500">{xp} XP</span>
+          <span className="text-xs text-[#8b7355]">{xp} XP</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
-            style={{ width: `${progressPct}%` }}
-          />
+        <div className="rpg-progress">
+          <div className="rpg-progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
         {nextLevelXP && (
-          <p className="mt-1 text-right text-[10px] text-slate-400">
+          <p className="mt-1 text-right text-[10px] text-[#8b7355]">
             Sonraki level: {nextLevelXP} XP
           </p>
         )}
       </div>
 
       {/* FP Balance */}
-      <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
-        <Coins className="h-4 w-4 text-emerald-600" />
-        <span className="text-sm font-semibold text-slate-800">{financialPoints} FP</span>
+      <div className="mb-3 flex items-center gap-2 rounded-lg border border-[var(--border-wood)]/40 bg-[#2a1f0e] px-3 py-2">
+        <Coins className="h-4 w-4 text-[var(--gold)]" />
+        <span className="font-medieval text-sm font-semibold text-[var(--text-gold)]">{financialPoints} FP</span>
       </div>
 
       {/* Item List */}
-      <div className="flex-1 overflow-y-auto p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Mağaza</p>
+      <div className="flex-1 overflow-y-auto">
+        <p className="font-medieval mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--gold)]/60">Mağaza</p>
 
         {[...groupedUnlocked.entries()].map(([type, items]) => (
           <div key={type} className="mb-3">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--gold)]">
               {TYPE_LABELS[type] || type}
             </p>
             <div className="grid gap-1.5">
@@ -134,7 +130,7 @@ export default function ShopPanel() {
                   <button
                     onClick={() => handleBuy(item.id)}
                     disabled={item.cost > financialPoints}
-                    className="shrink-0 rounded-md bg-emerald-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className="rpg-btn-sm shrink-0"
                     title="Satın Al"
                   >
                     Al
@@ -147,7 +143,7 @@ export default function ShopPanel() {
 
         {lockedItems.length > 0 && (
           <div className="mt-4">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8b7355]/60">
               Kilitli
             </p>
             <div className="grid gap-1.5">
@@ -155,7 +151,7 @@ export default function ShopPanel() {
                 <LockedShopItem key={item.id} item={item} />
               ))}
               {lockedItems.length > 6 && (
-                <p className="text-center text-[10px] text-slate-400">
+                <p className="text-center text-[10px] text-[#8b7355]">
                   +{lockedItems.length - 6} daha...
                 </p>
               )}

@@ -1,24 +1,34 @@
 import { useMemo, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { Coins, HeartPulse, Star, UserCircle2 } from 'lucide-react';
+import { Coins, HeartPulse, Star, MapPin } from 'lucide-react';
 import CityMap from './components/CityMap';
 import DashboardPanel from './components/DashboardPanel';
 import InventoryBar from './components/InventoryBar';
 import KnowledgeCenter from './components/KnowledgeCenter';
+import LoginScreen from './components/LoginScreen';
 import ShopPanel from './components/ShopPanel';
 import SimulationOverlay from './components/SimulationOverlay';
 import SpendingForm from './components/SpendingForm';
 import { SHOP_ITEMS } from './config/shopItems';
 import { useGame } from './context/GameContext';
 
-function MetricCard({ icon: Icon, label, value }) {
+function MetricCard({ icon: Icon, label, value, accent = 'gold' }) {
+  const accentMap = {
+    gold: 'from-[#daa520]/20 to-[#b8860b]/10 text-[var(--gold)]',
+    green: 'from-emerald-500/20 to-emerald-700/10 text-emerald-400',
+    red: 'from-rose-500/20 to-rose-700/10 text-rose-400',
+    blue: 'from-sky-500/20 to-sky-700/10 text-sky-400',
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-center gap-2 text-slate-500">
-        <Icon className="h-4 w-4" />
-        <span className="text-sm">{label}</span>
+    <div className="rpg-panel-dark p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <div className={`flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br ${accentMap[accent]}`}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-medium text-[var(--text-light)] opacity-70">{label}</span>
       </div>
-      <p className="text-2xl font-semibold text-slate-900">{value}</p>
+      <p className="font-medieval text-xl font-bold text-[var(--text-gold)]">{value}</p>
     </div>
   );
 }
@@ -26,7 +36,7 @@ function MetricCard({ icon: Icon, label, value }) {
 function App() {
   const {
     isLoading, error,
-    users,
+    users, selectedUserId,
     cityState, scenarios,
     level, xp, financialPoints,
     buyAndPlace, placeItem, placedItems, inventory,
@@ -77,8 +87,6 @@ function App() {
     }
   }
 
-
-  // --- DnD ---
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
@@ -110,17 +118,30 @@ function App() {
     }
   }
 
+  // Show login screen if no user selected
+  if (!selectedUserId) {
+    return <LoginScreen />;
+  }
+
   if (isLoading) {
-    return <div className="p-8 text-slate-700">Veriler yukleniyor...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg-dark)' }}>
+        <div className="rpg-panel p-8 text-center">
+          <p className="font-medieval text-lg text-[var(--text-parchment)]">Veriler yükleniyor...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
-        <div className="mx-auto max-w-3xl rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-700">
-          <p className="font-semibold">Backend baglantisi bekleniyor</p>
-          <p className="mt-2 text-sm">Hata: {error}</p>
-          <p className="mt-2 text-sm">Beklenen: <code>{import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8003'}/api/users</code></p>
+      <div className="flex min-h-screen items-center justify-center" style={{ background: 'var(--bg-dark)' }}>
+        <div className="rpg-panel mx-4 max-w-lg p-6">
+          <p className="font-medieval text-lg font-bold text-[var(--accent-red)]">Backend bağlantısı bekleniyor</p>
+          <p className="mt-2 text-sm text-[var(--text-parchment)]">Hata: {error}</p>
+          <p className="mt-2 text-xs text-[#8b7355]">
+            Beklenen: <code className="rounded bg-[var(--bg-panel-dark)] px-1 py-0.5">{import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8003'}/api/users</code>
+          </p>
         </div>
       </div>
     );
@@ -128,28 +149,32 @@ function App() {
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <main className="flex min-h-screen bg-slate-50">
+      <main className="flex min-h-screen" style={{ background: 'var(--bg-dark)' }}>
         {/* Sol: Mağaza */}
-        <div className="w-64 shrink-0 overflow-y-auto border-r border-slate-200 p-3">
+        <div className="w-64 shrink-0 overflow-y-auto border-r-2 border-[var(--border-wood)] p-3"
+          style={{ background: 'linear-gradient(180deg, #1e1608, #110c04)' }}
+        >
           <ShopPanel />
         </div>
 
         {/* Orta: Ana İçerik */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6"
+          style={{ background: 'linear-gradient(180deg, #1a1207, #110c04 70%)' }}
+        >
           <section className="mx-auto max-w-6xl space-y-5">
             <header className="space-y-1">
-              <h1 className="text-3xl font-bold text-slate-900">AgeSA City</h1>
-              <p className="text-slate-600">Şehrini inşa et, finansal geleceğini şekillendir.</p>
+              <h1 className="font-medieval text-3xl font-bold text-[var(--text-gold)]">AgeSA City</h1>
+              <p className="text-sm text-[var(--text-light)] opacity-60">Şehrini inşa et, finansal geleceğini şekillendir.</p>
             </header>
 
+            <hr className="rpg-divider" />
+
             {/* Metrikler */}
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <MetricCard icon={Star} label="Level" value={`${level} (${xp} XP)`} />
-                <MetricCard icon={Coins} label="Finansal Puan" value={`${financialPoints} FP`} />
-                <MetricCard icon={HeartPulse} label="Sağlık Skoru" value={cityState.healthScore} />
-                <MetricCard icon={UserCircle2} label="Haritadaki Bina" value={placedItems.size} />
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard icon={Star} label="Level" value={`${level} (${xp} XP)`} accent="gold" />
+              <MetricCard icon={Coins} label="Finansal Puan" value={`${financialPoints} FP`} accent="green" />
+              <MetricCard icon={HeartPulse} label="Sağlık Skoru" value={cityState.healthScore} accent="red" />
+              <MetricCard icon={MapPin} label="Haritadaki Bina" value={placedItems.size} accent="blue" />
             </div>
 
             {/* Envanter */}
@@ -159,13 +184,13 @@ function App() {
             <CityMap disasterActive={disasterActive} disasterPulse={disasterPulse} />
 
             {disasterReport && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                <p className="font-semibold">Felaket Hasar Raporu</p>
-                <p>FP kaybı: -{disasterReport.fpLost} FP</p>
+              <div className="rpg-panel-dark border-[var(--accent-red)] p-3 text-sm">
+                <p className="font-medieval font-semibold text-rose-400">Felaket Hasar Raporu</p>
+                <p className="text-rose-300">FP kaybı: -{disasterReport.fpLost} FP</p>
                 {disasterReport.removed > 0 && (
-                  <p>{disasterReport.removed} bina yıkıldı!</p>
+                  <p className="text-rose-300">{disasterReport.removed} bina yıkıldı!</p>
                 )}
-                <button onClick={() => setDisasterReport(null)} className="mt-1 text-xs text-rose-500 underline">Kapat</button>
+                <button onClick={() => setDisasterReport(null)} className="rpg-btn-sm mt-2 text-[10px]">Kapat</button>
               </div>
             )}
 
@@ -189,9 +214,11 @@ function App() {
             <KnowledgeCenter />
 
             {/* Debug */}
-            <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <summary className="cursor-pointer font-medium text-slate-800">Debug</summary>
-              <pre className="mt-3 max-h-[350px] overflow-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
+            <details className="rpg-panel-dark p-4">
+              <summary className="cursor-pointer font-medieval font-medium text-[var(--text-gold)]">Debug</summary>
+              <pre className="mt-3 max-h-[350px] overflow-auto rounded-lg p-4 text-xs text-[var(--text-light)]"
+                style={{ background: 'rgba(0,0,0,0.4)' }}
+              >
                 {JSON.stringify({
                   usersCount: users.length,
                   cityState,
@@ -211,7 +238,7 @@ function App() {
       {/* Sürükleme Overlay */}
       <DragOverlay>
         {activeDragItem ? (
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg border-2 border-indigo-400 bg-white/90 shadow-xl">
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg border-2 border-[var(--gold)] bg-[var(--bg-panel)]/90 shadow-xl">
             <img src={activeDragItem.asset} alt="" className="h-10 w-10 object-contain pixel-art" />
           </div>
         ) : null}

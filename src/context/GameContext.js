@@ -9,7 +9,6 @@ import { getLevelFromXP, getXPForNextLevel, MAX_STACK, SHOP_ITEMS } from '../con
 
 const GameContext = createContext(null);
 
-const DEFAULT_USER_ID = 'U0001';
 const STORAGE_KEY = 'agesa_city_state';
 
 const BUILDING_TYPE_MAP = [
@@ -136,18 +135,17 @@ export function GameProvider({ children }) {
   const [quizzes, setQuizzes] = useState([]);
   const [quizOptions, setQuizOptions] = useState([]);
   const [personas, setPersonas] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState(DEFAULT_USER_ID);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [backendCityStatus, setBackendCityStatus] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // City builder state
-  const saved = useMemo(() => loadSavedState(), []);
-  const [xp, setXP] = useState(saved?.xp ?? 0);
-  const [financialPoints, setFinancialPoints] = useState(saved?.financialPoints ?? 500);
-  const [inventory, setInventory] = useState(saved?.inventory ?? []);
-  const [placedItems, setPlacedItems] = useState(() => new Map(Object.entries(saved?.placedItems ?? {})));
+  // City builder state — backend is source of truth, localStorage is only a cache
+  const [xp, setXP] = useState(0);
+  const [financialPoints, setFinancialPoints] = useState(0);
+  const [inventory, setInventory] = useState([]);
+  const [placedItems, setPlacedItems] = useState(() => new Map());
 
   const level = useMemo(() => getLevelFromXP(xp), [xp]);
   const nextLevelXP = useMemo(() => getXPForNextLevel(xp), [xp]);
@@ -161,6 +159,9 @@ export function GameProvider({ children }) {
       placedItems: Object.fromEntries(placedItems),
     });
   }, [xp, financialPoints, inventory, placedItems]);
+
+  // Clear stale localStorage on fresh start
+  useEffect(() => { localStorage.removeItem(STORAGE_KEY); }, []);
 
   // --- Backend data loading ---
   useEffect(() => {
@@ -178,8 +179,7 @@ export function GameProvider({ children }) {
         setQuizOptions(gameData?.quizOptions ?? gameData?.quiz_options ?? []);
         const personasData = gameData?.personas ?? [];
         setPersonas(personasData.length > 0 ? personasData : usersData);
-        const hasDefaultUser = usersData.some((u) => u.user_id === DEFAULT_USER_ID);
-        setSelectedUserId(hasDefaultUser ? DEFAULT_USER_ID : usersData[0]?.user_id || '');
+        // selectedUserId login ekranından set edilecek, burada otomatik atama yok
       } catch (err) {
         if (!mounted) return;
         setError(err?.message || 'Backend verisi yuklenemedi.');
@@ -211,7 +211,7 @@ export function GameProvider({ children }) {
         if (data?.dashboard) setDashboard(data.dashboard);
 
         const backendCity = data?.city?.placed_items;
-        if (Array.isArray(backendCity) && backendCity.length > 0) {
+        if (Array.isArray(backendCity)) {
           const cityMap = new Map();
           for (const item of backendCity) {
             const key = `${item.row}_${item.col}`;
@@ -220,6 +220,7 @@ export function GameProvider({ children }) {
               ...(shopItem || {}),
               id: item.item_id,
               label: item.item_name || shopItem?.label || item.item_id,
+              asset: shopItem?.asset || '',
               instanceId: item.placement_id || `${item.item_id}_${Date.now()}`,
               row: item.row,
               col: item.col,
@@ -228,8 +229,17 @@ export function GameProvider({ children }) {
           }
           setPlacedItems(cityMap);
         }
+        setInventory([]);
       })
-      .catch(() => { /* backend unavailable, keep local state */ });
+      .catch(() => {
+        const fallback = loadSavedState();
+        if (fallback) {
+          setXP(fallback.xp ?? 0);
+          setFinancialPoints(fallback.financialPoints ?? 500);
+          setInventory(fallback.inventory ?? []);
+          setPlacedItems(new Map(Object.entries(fallback.placedItems ?? {})));
+        }
+      });
 
     fetchCityStatus(selectedUserId)
       .then((data) => { if (!cancelled) setBackendCityStatus(data); })

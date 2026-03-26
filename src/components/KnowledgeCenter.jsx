@@ -54,14 +54,14 @@ export default function KnowledgeCenter() {
   const hasQuizData = questionsWithOptions.length > 0;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rpg-panel-dark p-4">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-indigo-500" />
-          <h2 className="text-lg font-semibold text-slate-900">Bilgi Merkezi</h2>
+          <BookOpen className="h-5 w-5 text-[var(--gold)]" />
+          <h2 className="font-medieval text-lg font-semibold text-[var(--text-gold)]">Bilgi Merkezi</h2>
         </div>
         {totalAnswered > 0 && (
-          <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+          <span className="rpg-badge">
             {correctCount}/{totalAnswered} doğru
           </span>
         )}
@@ -70,7 +70,7 @@ export default function KnowledgeCenter() {
       {/* Öğrenme İçerikleri */}
       {learningContents.length > 0 && (
         <div className="mb-4">
-          <h3 className="mb-2 text-sm font-medium text-slate-600">Öğrenme İçerikleri</h3>
+          <h3 className="mb-2 text-sm font-medium text-[#8b7355]">Öğrenme İçerikleri</h3>
           <ul className="grid gap-2 md:grid-cols-2">
             {learningContents.slice(0, 6).map((item) => {
               const id = item.content_id || item.id;
@@ -78,23 +78,23 @@ export default function KnowledgeCenter() {
               return (
                 <li
                   key={id}
-                  className="cursor-pointer rounded-md border border-slate-200 bg-slate-50 p-3 transition-colors hover:border-indigo-200 hover:bg-indigo-50/30"
+                  className="cursor-pointer rounded-md border border-[var(--border-wood)]/30 bg-[#2a1f0e] p-3 transition-all hover:border-[var(--gold)]/40"
                   onClick={() => setExpandedContent(isExpanded ? null : id)}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                      <p className="text-sm font-medium text-[var(--text-light)]">{item.title}</p>
                       <div className="mt-0.5 flex items-center gap-2">
                         {item.module_title && (
-                          <span className="text-[10px] text-indigo-500">{item.module_title}</span>
+                          <span className="text-[10px] text-[var(--gold)]">{item.module_title}</span>
                         )}
-                        <span className="text-xs text-slate-500">{item.content_type || 'content'}</span>
+                        <span className="text-xs text-[#8b7355]">{item.content_type || 'content'}</span>
                         {item.estimated_time_min && (
-                          <span className="text-[10px] text-slate-400">{item.estimated_time_min} dk</span>
+                          <span className="text-[10px] text-[#8b7355]">{item.estimated_time_min} dk</span>
                         )}
                       </div>
                     </div>
-                    <ChevronRight className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    <ChevronRight className={`h-4 w-4 shrink-0 text-[#8b7355] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                   </div>
                   <AnimatePresence>
                     {isExpanded && item.body_text && (
@@ -104,7 +104,7 @@ export default function KnowledgeCenter() {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <p className="mt-2 border-t border-slate-200 pt-2 text-xs leading-relaxed text-slate-600">
+                        <p className="mt-2 border-t border-[var(--border-wood)]/20 pt-2 text-xs leading-relaxed text-[var(--text-light)] opacity-70">
                           {item.body_text}
                         </p>
                       </motion.div>
@@ -119,17 +119,17 @@ export default function KnowledgeCenter() {
 
       {/* Quiz */}
       {hasQuizData ? (
-        <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4">
+        <div className="rounded-lg border border-[var(--border-wood)]/30 bg-[#1e1608] p-4">
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs font-medium text-indigo-600">
+            <span className="text-xs font-medium text-[var(--gold)]">
               Soru {currentIndex + 1} / {questionsWithOptions.length}
             </span>
-            <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">
+            <span className="rpg-badge">
               +{currentQuestion?.xp || 10} XP
             </span>
           </div>
 
-          <p className="mb-3 text-sm font-semibold text-slate-800">
+          <p className="mb-3 text-sm font-semibold text-[var(--text-light)]">
             {currentQuestion?.question_text}
           </p>
 
@@ -138,12 +138,11 @@ export default function KnowledgeCenter() {
               {currentQuestion?.options.map((opt) => {
                 const isSelected = selectedOption === opt.option_id;
                 const isCorrectOpt = opt.option_id === currentQuestion.correct_option_id;
-                let optClass =
-                  'border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50';
+                let optClass = 'border-[var(--border-wood)]/20 bg-[#2a1f0e] text-[var(--text-light)] hover:border-[var(--gold)]/40';
                 if (answered && isCorrectOpt)
-                  optClass = 'border-emerald-400 bg-emerald-50 text-emerald-800';
+                  optClass = 'border-emerald-600 bg-emerald-900/30 text-emerald-300';
                 else if (answered && isSelected && !isCorrectOpt)
-                  optClass = 'border-rose-400 bg-rose-50 text-rose-800';
+                  optClass = 'border-rose-600 bg-rose-900/30 text-rose-300';
 
                 return (
                   <motion.button
@@ -152,15 +151,15 @@ export default function KnowledgeCenter() {
                     whileTap={!answered ? { scale: 0.99 } : {}}
                     disabled={answered}
                     onClick={() => handleAnswer(opt.option_id)}
-                    className={`flex w-full items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${optClass} ${
+                    className={`flex w-full items-center gap-2 rounded-md border p-3 text-left text-sm transition-all ${optClass} ${
                       answered ? 'cursor-default' : 'cursor-pointer'
                     }`}
                   >
                     {answered && isCorrectOpt && (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
                     )}
                     {answered && isSelected && !isCorrectOpt && (
-                      <XCircle className="h-4 w-4 shrink-0 text-rose-500" />
+                      <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
                     )}
                     <span>{opt.option_text}</span>
                   </motion.button>
@@ -176,22 +175,22 @@ export default function KnowledgeCenter() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className={`mt-3 rounded-lg p-3 text-sm ${
+                className={`mt-3 rounded-md p-3 text-sm ${
                   isCorrect
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-rose-100 text-rose-800'
+                    ? 'border border-emerald-700/40 bg-emerald-900/30 text-emerald-300'
+                    : 'border border-rose-700/40 bg-rose-900/30 text-rose-300'
                 }`}
               >
                 <p className="font-medium">
                   {isCorrect ? currentQuestion.feedback_correct : currentQuestion.feedback_wrong}
                 </p>
                 {isCorrect && lastReward && (lastReward.xp > 0 || lastReward.fp > 0) && (
-                  <p className="mt-1 text-xs font-semibold">
+                  <p className="mt-1 text-xs font-semibold text-[var(--gold-light)]">
                     +{lastReward.xp} XP, +{lastReward.fp} FP kazandın!
                   </p>
                 )}
                 {isCorrect && lastReward && lastReward.xp === 0 && lastReward.fp === 0 && (
-                  <p className="mt-1 text-xs text-emerald-600">
+                  <p className="mt-1 text-xs text-emerald-400/70">
                     Bu soruyu zaten doğru cevaplamıştın, tekrar ödül yok.
                   </p>
                 )}
@@ -200,16 +199,13 @@ export default function KnowledgeCenter() {
           </AnimatePresence>
 
           {answered && (
-            <button
-              onClick={handleNext}
-              className="mt-3 flex items-center gap-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
+            <button onClick={handleNext} className="rpg-btn mt-3 flex items-center gap-1 text-sm">
               Sonraki Soru <ChevronRight className="h-4 w-4" />
             </button>
           )}
         </div>
       ) : (
-        <p className="py-4 text-center text-sm text-slate-400">
+        <p className="py-4 text-center text-sm text-[#8b7355]">
           Quiz verileri yükleniyor...
         </p>
       )}
@@ -219,15 +215,15 @@ export default function KnowledgeCenter() {
         <motion.div
           initial={{ scale: 0.8, opacity: 0.3 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="mt-4 flex items-center gap-2 rounded-md bg-amber-100 px-3 py-2"
+          className="mt-4 flex items-center gap-2 rounded-md border border-[var(--gold)]/30 bg-[var(--gold)]/10 px-3 py-2"
         >
-          <Trophy className="h-5 w-5 text-amber-600" />
-          <p className="text-sm font-semibold text-amber-800">
+          <Trophy className="h-5 w-5 text-[var(--gold)]" />
+          <p className="font-medieval text-sm font-semibold text-[var(--text-gold)]">
             Level 5! Golden AgeSA Tower mağazada açıldı!
           </p>
         </motion.div>
       ) : (
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-[#8b7355]">
           Level 5'e ulaşınca Golden AgeSA Tower açılacak.
         </p>
       )}
