@@ -1,5 +1,10 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { loadGameData, fetchCityStatus } from '../services/gameDataService';
+import {
+  loadGameData, fetchCityStatus, loginUser,
+  earnXPApi, earnFPApi, spendFPApi,
+  buyInventoryApi, placeCityItemApi, removeCityItemApi, buyAndPlaceCityApi,
+  runSimulationApi, triggerDisasterApi, submitQuizApi, fetchDashboard,
+} from '../services/gameDataService';
 import { getLevelFromXP, getXPForNextLevel, MAX_STACK, SHOP_ITEMS } from '../config/shopItems';
 
 const GameContext = createContext(null);
@@ -97,7 +102,7 @@ function calculateCityState({ selectedUser, spendings, scenarios, backendCitySta
   };
 }
 
-// --- localStorage helpers ---
+// --- localStorage helpers (fallback cache) ---
 
 function loadSavedState() {
   try {
@@ -115,6 +120,10 @@ function persistState(state) {
   } catch { /* quota exceeded — ignore */ }
 }
 
+function fireAndForget(promise) {
+  promise.catch((err) => console.warn('[Backend sync]', err.message));
+}
+
 // --- Provider ---
 
 export function GameProvider({ children }) {
@@ -127,10 +136,11 @@ export function GameProvider({ children }) {
   const [personas, setPersonas] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(DEFAULT_USER_ID);
   const [backendCityStatus, setBackendCityStatus] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // City builder state (persisted)
+  // City builder state
   const saved = useMemo(() => loadSavedState(), []);
   const [xp, setXP] = useState(saved?.xp ?? 0);
   const [financialPoints, setFinancialPoints] = useState(saved?.financialPoints ?? 500);
@@ -140,7 +150,7 @@ export function GameProvider({ children }) {
   const level = useMemo(() => getLevelFromXP(xp), [xp]);
   const nextLevelXP = useMemo(() => getXPForNextLevel(xp), [xp]);
 
-  // Persist on change
+  // Persist as local cache
   useEffect(() => {
     persistState({
       xp,
@@ -184,12 +194,26 @@ export function GameProvider({ children }) {
     [users, selectedUserId],
   );
 
+  // Login & sync state from backend when user changes
   useEffect(() => {
     if (!selectedUserId) return;
     let cancelled = false;
+
+    loginUser(selectedUserId)
+      .then((data) => {
+        if (cancelled) return;
+        const backendXP = data?.xp?.total_xp;
+        const backendFP = data?.financial_points?.financial_points_balance;
+        if (typeof backendXP === 'number') setXP(backendXP);
+        if (typeof backendFP === 'number') setFinancialPoints(backendFP);
+        if (data?.dashboard) setDashboard(data.dashboard);
+      })
+      .catch(() => { /* backend unavailable, keep local state */ });
+
     fetchCityStatus(selectedUserId)
       .then((data) => { if (!cancelled) setBackendCityStatus(data); })
       .catch(() => { if (!cancelled) setBackendCityStatus(null); });
+
     return () => { cancelled = true; };
   }, [selectedUserId]);
 
@@ -198,19 +222,28 @@ export function GameProvider({ children }) {
     [selectedUser, spendings, scenarios, backendCityStatus],
   );
 
-  // --- City builder actions ---
+  // --- City builder actions (optimistic UI + backend sync) ---
 
-  const earnXP = useCallback((amount) => {
+  const earnXP = useCallback((amount, reason) => {
     setXP((prev) => prev + amount);
-  }, []);
+    if (selectedUserId) {
+      fireAndForget(earnXPApi(selectedUserId, amount, reason));
+    }
+  }, [selectedUserId]);
 
-  const earnFinancialPoints = useCallback((amount) => {
+  const earnFinancialPoints = useCallback((amount, reason) => {
     setFinancialPoints((prev) => prev + amount);
-  }, []);
+    if (selectedUserId) {
+      fireAndForget(earnFPApi(selectedUserId, amount, reason));
+    }
+  }, [selectedUserId]);
 
-  const spendFinancialPoints = useCallback((amount) => {
+  const spendFinancialPoints = useCallback((amount, itemName, reason) => {
     setFinancialPoints((prev) => Math.max(0, prev - amount));
-  }, []);
+    if (selectedUserId) {
+      fireAndForget(spendFPApi(selectedUserId, amount, itemName, reason));
+    }
+  }, [selectedUserId]);
 
   const buyItem = useCallback((shopItemId) => {
     const shopItem = SHOP_ITEMS.find((s) => s.id === shopItemId);
@@ -224,8 +257,12 @@ export function GameProvider({ children }) {
       if (shopItem.reusable && prev.some((i) => i.id === shopItem.id)) return prev;
       return [...prev, { ...shopItem, instanceId }];
     });
+
+    if (selectedUserId) {
+      fireAndForget(buyInventoryApi(selectedUserId, shopItem.id, shopItem.label, shopItem.cost));
+    }
     return true;
-  }, [xp, financialPoints]);
+  }, [xp, financialPoints, selectedUserId]);
 
   const placeItem = useCallback((instanceId, row, col) => {
     const key = `${row}_${col}`;
@@ -249,10 +286,15 @@ export function GameProvider({ children }) {
       });
 
       if (!didPlace) return prev;
+
+      if (selectedUserId) {
+        fireAndForget(placeCityItemApi(selectedUserId, row, col, item.id, item.label));
+      }
+
       if (item.reusable) return prev;
       return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     });
-  }, []);
+  }, [selectedUserId]);
 
   const removeItem = useCallback((row, col) => {
     const key = `${row}_${col}`;
@@ -268,9 +310,14 @@ export function GameProvider({ children }) {
         }
         next.delete(key);
       }
+
+      if (selectedUserId) {
+        fireAndForget(removeCityItemApi(selectedUserId, row, col));
+      }
+
       return next;
     });
-  }, []);
+  }, [selectedUserId]);
 
   const buyAndPlace = useCallback((shopItemId, row, col) => {
     const shopItem = SHOP_ITEMS.find((s) => s.id === shopItemId);
@@ -306,8 +353,72 @@ export function GameProvider({ children }) {
         return [...prev, { ...shopItem, instanceId: invInstanceId }];
       });
     }
+
+    if (selectedUserId) {
+      fireAndForget(buyAndPlaceCityApi(selectedUserId, shopItem.id, shopItem.label, shopItem.cost, row, col));
+    }
     return true;
-  }, [xp, financialPoints]);
+  }, [xp, financialPoints, selectedUserId]);
+
+  // --- Quiz submit ---
+
+  const submitQuiz = useCallback(async (questionId, selectedOptionId) => {
+    if (!selectedUserId) return null;
+    try {
+      const result = await submitQuizApi(selectedUserId, questionId, selectedOptionId);
+      const data = result?.data;
+      if (data) {
+        if (data.xp_earned > 0) setXP((prev) => prev + data.xp_earned);
+        if (data.fp_earned > 0) setFinancialPoints((prev) => prev + data.fp_earned);
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  }, [selectedUserId]);
+
+  // --- Simulation ---
+
+  const runSimulation = useCallback(async () => {
+    if (!selectedUserId) return null;
+    try {
+      const result = await runSimulationApi(selectedUserId);
+      const data = result?.data;
+      if (data) {
+        if (data.xp_earned > 0) setXP((prev) => prev + data.xp_earned);
+        if (data.fp_earned > 0) setFinancialPoints((prev) => prev + data.fp_earned);
+      }
+      return data;
+    } catch (err) {
+      return { error: err.message };
+    }
+  }, [selectedUserId]);
+
+  // --- Disaster ---
+
+  const triggerDisaster = useCallback(async (severity = 2) => {
+    if (!selectedUserId) return null;
+    try {
+      const result = await triggerDisasterApi(selectedUserId, severity);
+      const data = result?.data;
+      if (data?.fp_penalty) {
+        setFinancialPoints((prev) => Math.max(0, prev - data.fp_penalty));
+      }
+      return data;
+    } catch {
+      spendFinancialPoints(100, 'Felaket', 'disaster_fallback');
+      return null;
+    }
+  }, [selectedUserId, spendFinancialPoints]);
+
+  // --- Refresh dashboard ---
+
+  const refreshDashboard = useCallback(() => {
+    if (!selectedUserId) return;
+    fireAndForget(
+      fetchDashboard(selectedUserId).then((d) => setDashboard(d)),
+    );
+  }, [selectedUserId]);
 
   const resetCityState = useCallback(() => {
     setXP(0);
@@ -324,25 +435,26 @@ export function GameProvider({ children }) {
       quizzes, quizOptions,
       personas,
       selectedUserId, selectedUser, setSelectedUserId,
-      cityState, backendCityStatus,
-      // City builder
+      cityState, backendCityStatus, dashboard,
       xp, level, nextLevelXP,
       financialPoints,
       inventory, placedItems,
       earnXP, earnFinancialPoints, spendFinancialPoints,
       buyItem, buyAndPlace, placeItem, removeItem, resetCityState,
+      submitQuiz, runSimulation, triggerDisaster, refreshDashboard,
     }),
     [
       isLoading, error,
       users, spendings, scenarios, learningContents,
       quizzes, quizOptions,
       personas,
-      selectedUserId, selectedUser, cityState, backendCityStatus,
+      selectedUserId, selectedUser, cityState, backendCityStatus, dashboard,
       xp, level, nextLevelXP,
       financialPoints,
       inventory, placedItems,
       earnXP, earnFinancialPoints, spendFinancialPoints,
       buyItem, buyAndPlace, placeItem, removeItem, resetCityState,
+      submitQuiz, runSimulation, triggerDisaster, refreshDashboard,
     ],
   );
 

@@ -4,7 +4,7 @@ import { BookOpen, CheckCircle2, XCircle, ChevronRight, Trophy } from 'lucide-re
 import { useGame } from '../context/GameContext';
 
 export default function KnowledgeCenter() {
-  const { level, quizzes, quizOptions, learningContents, earnXP, earnFinancialPoints } = useGame();
+  const { level, quizzes, quizOptions, learningContents, submitQuiz } = useGame();
   const towerUnlocked = level >= 5;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -12,6 +12,7 @@ export default function KnowledgeCenter() {
   const [answered, setAnswered] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [totalAnswered, setTotalAnswered] = useState(0);
+  const [lastReward, setLastReward] = useState(null);
 
   const questionsWithOptions = useMemo(() => {
     if (!quizzes.length || !quizOptions.length) return [];
@@ -26,18 +27,20 @@ export default function KnowledgeCenter() {
   const currentQuestion = questionsWithOptions[currentIndex] ?? null;
   const isCorrect = currentQuestion && selectedOption === currentQuestion.correct_option_id;
 
-  function handleAnswer(optionId) {
+  async function handleAnswer(optionId) {
     if (answered) return;
     setSelectedOption(optionId);
     setAnswered(true);
     setTotalAnswered((p) => p + 1);
 
     const correct = optionId === currentQuestion.correct_option_id;
-    if (correct) {
-      setCorrectCount((p) => p + 1);
-      const xpReward = Number(currentQuestion.xp) || 10;
-      earnXP(xpReward);
-      earnFinancialPoints(Math.round(xpReward * 5));
+    if (correct) setCorrectCount((p) => p + 1);
+
+    const result = await submitQuiz(currentQuestion.question_id, optionId);
+    if (result) {
+      setLastReward({ xp: result.xp_earned || 0, fp: result.fp_earned || 0 });
+    } else {
+      setLastReward(null);
     }
   }
 
@@ -149,9 +152,14 @@ export default function KnowledgeCenter() {
                 <p className="font-medium">
                   {isCorrect ? currentQuestion.feedback_correct : currentQuestion.feedback_wrong}
                 </p>
-                {isCorrect && (
+                {isCorrect && lastReward && (lastReward.xp > 0 || lastReward.fp > 0) && (
                   <p className="mt-1 text-xs font-semibold">
-                    +{currentQuestion.xp} XP, +{Math.round(Number(currentQuestion.xp) * 5)} FP kazandın!
+                    +{lastReward.xp} XP, +{lastReward.fp} FP kazandın!
+                  </p>
+                )}
+                {isCorrect && lastReward && lastReward.xp === 0 && lastReward.fp === 0 && (
+                  <p className="mt-1 text-xs text-emerald-600">
+                    Bu soruyu zaten doğru cevaplamıştın, tekrar ödül yok.
                   </p>
                 )}
               </motion.div>

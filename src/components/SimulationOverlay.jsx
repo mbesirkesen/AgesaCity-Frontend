@@ -13,6 +13,7 @@ export default function SimulationOverlay({
   healthScore = 0,
   onRunSimulation,
   onWithdrawSavings,
+  simulationMsg = '',
 }) {
   const annualReturn = parseRate(annualReturnRaw);
   const years = 10;
@@ -45,7 +46,7 @@ export default function SimulationOverlay({
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
-          onClick={() => onRunSimulation(futureValue)}
+          onClick={onRunSimulation}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           10 Yil Ileri Sar
@@ -57,6 +58,10 @@ export default function SimulationOverlay({
           Birikim Cek (Felaket Testi)
         </button>
       </div>
+
+      {simulationMsg && (
+        <p className="mt-2 text-xs font-medium text-amber-600">{simulationMsg}</p>
+      )}
 
       <p className="mt-3 text-xs text-slate-500">
         Health score {healthScore > 80 ? '80 uzeri, gokdelen seviyesi acik.' : '80 alti, gokdelen kilitli.'}

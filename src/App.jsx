@@ -27,11 +27,13 @@ function App() {
     users,
     cityState, scenarios,
     level, xp, financialPoints,
-    earnXP, earnFinancialPoints, spendFinancialPoints,
     buyAndPlace, placeItem, placedItems, inventory,
+    runSimulation, triggerDisaster: triggerDisasterApi,
+    dashboard,
   } = useGame();
 
   const [simulationValue, setSimulationValue] = useState(null);
+  const [simulationMsg, setSimulationMsg] = useState('');
   const [disasterPulse, setDisasterPulse] = useState(0);
   const [manualDisaster, setManualDisaster] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState(null);
@@ -47,17 +49,21 @@ function App() {
     return sum / scenarios.length;
   }, [scenarios]);
 
-  function triggerDisaster() {
+  async function handleDisaster() {
     setManualDisaster(true);
     setDisasterPulse((prev) => prev + 1);
-    spendFinancialPoints(100);
+    await triggerDisasterApi(2);
     window.setTimeout(() => setManualDisaster(false), 1500);
   }
 
-  function handleSimulation(futureValue) {
-    setSimulationValue(futureValue);
-    earnXP(30);
-    earnFinancialPoints(200);
+  async function handleSimulation() {
+    const result = await runSimulation();
+    if (result?.error) {
+      setSimulationMsg('Bugün simülasyon zaten çalıştırıldı.');
+    } else if (result) {
+      setSimulationValue(result.projected_fund_10y || result.projected_fund_20y);
+      setSimulationMsg('');
+    }
   }
 
 
@@ -147,7 +153,8 @@ function App() {
               annualReturnRaw={annualReturnAvg}
               healthScore={cityState.healthScore}
               onRunSimulation={handleSimulation}
-              onWithdrawSavings={triggerDisaster}
+              onWithdrawSavings={handleDisaster}
+              simulationMsg={simulationMsg}
             />
 
             {/* Bilgi Merkezi */}
@@ -165,6 +172,7 @@ function App() {
                   placedCount: placedItems.size,
                   disasterActive,
                   simulationValue,
+                  dashboard,
                 }, null, 2)}
               </pre>
             </details>
