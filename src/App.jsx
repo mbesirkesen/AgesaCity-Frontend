@@ -42,7 +42,6 @@ function App() {
     buyAndPlace, placeItem, placedItems, inventory,
     runSimulation, triggerDisaster: triggerDisasterApi,
     dashboard,
-    refreshDashboard,
   } = useGame();
 
   const [simulationValue, setSimulationValue] = useState(null);
@@ -74,7 +73,6 @@ function App() {
         damaged: result.city_damage?.city_items_damaged ?? 0,
         removed: result.city_damage?.removed_items?.length ?? 0,
       });
-      refreshDashboard();
     }
     window.setTimeout(() => setManualDisaster(false), 1500);
   }

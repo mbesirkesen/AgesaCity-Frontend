@@ -127,53 +127,11 @@ function PlacedBuilding({ item, tileSize, onRemove }) {
 }
 
 export default function CityMap({ disasterActive = false, disasterPulse = 0 }) {
-  const { placedItems, removeItem, dashboard } = useGame();
+  const { placedItems, removeItem } = useGame();
   const shouldShake = disasterActive && disasterPulse > 0;
   const towerSrc = getGoldenTowerAsset();
   const [tileSize, setTileSize] = useState(28);
   const gridRef = useRef(null);
-  const layer1 = dashboard?.layer_1_city_ground;
-  const layer2 = dashboard?.layer_2_learning;
-  const layer3 = dashboard?.layer_3_green;
-
-  const skyMood = layer1?.sky_mood;
-  const greenScore = Number(layer3?.green_score ?? 0);
-
-  // Green score'a göre arka plan rengini hesapla
-  // 0 → gri/kahve, 100 → yoğun yeşil
-  const getGreenifiedBackground = (score) => {
-    const ratio = Math.min(100, Math.max(0, score)) / 100;
-    
-    // Base colors (score = 0): grey/brown
-    const baseTop = { r: 26, g: 20, b: 20 };
-    const baseBot = { r: 25, g: 17, b: 17 };
-    
-    // Target colors (score = 100): deep green
-    const greenTop = { r: 20, g: 48, b: 20 };
-    const greenBot = { r: 13, g: 35, b: 13 };
-    
-    // İnterpolasyon
-    const topR = Math.round(baseTop.r + (greenTop.r - baseTop.r) * ratio);
-    const topG = Math.round(baseTop.g + (greenTop.g - baseTop.g) * ratio);
-    const topB = Math.round(baseTop.b + (greenTop.b - baseTop.b) * ratio);
-    
-    const botR = Math.round(baseBot.r + (greenBot.r - baseBot.r) * ratio);
-    const botG = Math.round(baseBot.g + (greenBot.g - baseBot.g) * ratio);
-    const botB = Math.round(baseBot.b + (greenBot.b - baseBot.b) * ratio);
-    
-    return `linear-gradient(180deg, rgb(${topR}, ${topG}, ${topB}), rgb(${botR}, ${botG}, ${botB}))`;
-  };
-
-  const baseBackground = skyMood === 'sunny'
-    ? getGreenifiedBackground(greenScore)
-    : skyMood === 'cloudy'
-      ? `linear-gradient(180deg, rgb(${43 + greenScore * 0.12}, ${50 + greenScore * 0.1}, ${42 + greenScore * 0.12}), rgb(${26 + greenScore * 0.08}, ${34 + greenScore * 0.08}, ${24 + greenScore * 0.1}))`
-      : `linear-gradient(180deg, rgb(${42 + greenScore * 0.1}, ${31 + greenScore * 0.08}, ${31 + greenScore * 0.08}), rgb(${25 + greenScore * 0.05}, ${17 + greenScore * 0.05}, ${17 + greenScore * 0.05}))`;
-
-  const autoBoostActive =
-    Number(layer1?.road_quality ?? 0) >= 75
-    || Number(layer2?.education_score ?? 0) >= 70
-    || Number(layer3?.green_score ?? 0) >= 85;
 
   useEffect(() => {
     const target = gridRef.current;
@@ -206,53 +164,18 @@ export default function CityMap({ disasterActive = false, disasterPulse = 0 }) {
         <p className="text-sm text-[var(--text-light)] opacity-50">
           Envanterden sürükleyip boş parsellere bırak.
         </p>
-        {(layer1 || layer2 || layer3) && (
-          <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-            {layer1 && (
-              <span className="rounded border border-[var(--gold)]/30 bg-[var(--gold)]/10 px-2 py-0.5 text-[var(--gold)]">
-                Yol {Number(layer1.road_quality ?? 0).toFixed(1)}/100
-              </span>
-            )}
-            {layer2 && (
-              <span className="rounded border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 text-sky-300">
-                Egitim {Number(layer2.education_score ?? 0).toFixed(1)}/100
-              </span>
-            )}
-            {layer3 && (
-              <span className="rounded border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
-                Yesil {Number(layer3.green_score ?? 0).toFixed(1)}/100
-              </span>
-            )}
-            {autoBoostActive && (
-              <span className="rounded border border-violet-400/40 bg-violet-500/15 px-2 py-0.5 text-violet-200">
-                Analiz iyi: otomatik bonus aktif
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       <div
         ref={gridRef}
-        className="relative grid gap-[3px] rounded-lg p-2"
+        className="grid gap-[3px] rounded-lg p-2"
         style={{
           gridTemplateColumns: `repeat(${GRID_COLS}, ${tileSize}px)`,
           background: disasterActive
             ? 'linear-gradient(180deg, #2a1a1a, #1e1010)'
-            : baseBackground,
+            : 'linear-gradient(180deg, #1e2a1e, #101e10)',
         }}
       >
-        {/* Sky mood atmosphere overlay */}
-        {skyMood === 'cloudy' && (
-          <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-slate-700/40 to-slate-600/20" />
-        )}
-        {skyMood === 'grey' && (
-          <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-slate-800/50 to-slate-700/40" />
-        )}
-        {skyMood === 'sunny' && (
-          <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-b from-yellow-600/10 to-transparent" />
-        )}
-        
         <img
           src={getReferenceTileAsset()}
           alt=""

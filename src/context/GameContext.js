@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   loadGameData, fetchCityStatus, loginUser,
   earnXPApi, earnFPApi, spendFPApi,
@@ -6,7 +6,6 @@ import {
   runSimulationApi, triggerDisasterApi, submitQuizApi, fetchDashboard,
 } from '../services/gameDataService';
 import { getLevelFromXP, getXPForNextLevel, MAX_STACK, SHOP_ITEMS } from '../config/shopItems';
-import { isRoadCell } from '../components/CityMap';
 
 const GameContext = createContext(null);
 
@@ -147,9 +146,6 @@ export function GameProvider({ children }) {
   const [financialPoints, setFinancialPoints] = useState(0);
   const [inventory, setInventory] = useState([]);
   const [placedItems, setPlacedItems] = useState(() => new Map());
-  const autoCityBoostRef = useRef(new Set());
-  const unlockedBuildingsRef = useRef([]);  // Track education unlocked buildings
-  const unlockedPlantsRef = useRef([]);     // Track green unlocked plants
 
   const level = useMemo(() => getLevelFromXP(xp), [xp]);
   const nextLevelXP = useMemo(() => getXPForNextLevel(xp), [xp]);
@@ -359,7 +355,6 @@ export function GameProvider({ children }) {
     if (!shopItem) return false;
     if (shopItem.requiredLevel > getLevelFromXP(xp)) return false;
     if (shopItem.cost > financialPoints) return false;
-    if (isRoadCell(row, col)) return false;  // Yola yapı konamaz
 
     const key = `${row}_${col}`;
     let placed = false;
@@ -396,148 +391,6 @@ export function GameProvider({ children }) {
     return true;
   }, [xp, financialPoints, selectedUserId]);
 
-  // Sehir Analizi iyi oldugunda City Map'e otomatik bonus yapilar ekle (kullanici basina bir kez)
-  useEffect(() => {
-    if (!selectedUserId || !dashboard) return;
-
-    const layer1 = dashboard?.layer_1_city_ground ?? {};
-    const layer2 = dashboard?.layer_2_learning ?? {};
-    const layer3 = dashboard?.layer_3_green ?? {};
-    const layer4 = dashboard?.layer_4_bes ?? {};
-
-    const existingItemIds = new Set(Array.from(placedItems.values()).map((item) => item.id));
-    const autoRules = [
-      {
-        key: 'road_quality_good',
-        pass: Number(layer1.road_quality ?? 0) >= 75,
-        itemId: 'tree_1',
-        cells: [[1, 1], [1, 2], [2, 1]],
-      },
-      {
-        key: 'education_good',
-        pass: Number(layer2.education_score ?? 0) >= 70,
-        itemId: 'library_1',
-        cells: [[1, 3], [2, 3], [2, 4]],
-      },
-      {
-        key: 'green_good',
-        pass: Number(layer3.green_score ?? 0) >= 85,
-        itemId: 'tree_2',
-        cells: [[1, 4], [2, 2], [2, 6]],
-      },
-      {
-        key: 'bes_good',
-        pass: Number(layer4.projected_fund_tl ?? 0) >= 25000000,
-        itemId: 'bank_1',
-        cells: [[1, 7], [2, 7], [2, 8]],
-      },
-    ];
-
-    for (const rule of autoRules) {
-      const marker = `${selectedUserId}:${rule.key}`;
-      if (!rule.pass || autoCityBoostRef.current.has(marker)) continue;
-
-      if (existingItemIds.has(rule.itemId)) {
-        autoCityBoostRef.current.add(marker);
-        continue;
-      }
-
-      const targetCell = rule.cells.find(([row, col]) => !placedItems.has(`${row}_${col}`));
-      if (!targetCell) continue;
-
-      const [row, col] = targetCell;
-      const placed = buyAndPlace(rule.itemId, row, col);
-      if (placed) {
-        autoCityBoostRef.current.add(marker);
-        break;
-      }
-    }
-  }, [selectedUserId, dashboard, placedItems, buyAndPlace]);
-
-  // Eğitim ilerlemesine göre yeni açılan binalar otomatik haritaya yerleştiril
-  useEffect(() => {
-    if (!selectedUserId || !dashboard?.layer_2_learning) return;
-
-    const currentUnlocked = dashboard.layer_2_learning.unlocked_buildings || [];
-    const previousUnlocked = unlockedBuildingsRef.current || [];
-
-    // Yeni açılan binalar bul
-    const newlyUnlocked = currentUnlocked.filter((itemId) => !previousUnlocked.includes(itemId));
-
-    // Ref'i güncelle
-    unlockedBuildingsRef.current = [...currentUnlocked];
-
-    // Yeni binalar varsa haritaya yerleştir
-    if (newlyUnlocked.length === 0) return;
-
-    // Boş hücreler bul
-    const emptyCells = [];
-    for (let row = 0; row < 12; row++) {
-      for (let col = 0; col < 24; col++) {
-        if (!placedItems.has(`${row}_${col}`)) {
-          emptyCells.push([row, col]);
-        }
-      }
-    }
-
-    if (emptyCells.length === 0) return;
-
-    // Yeni binalar için boş hücreler seç ve yerleştir
-    for (const itemId of newlyUnlocked) {
-      if (emptyCells.length === 0) break;
-
-      // Rastgele boş hücre seç
-      const index = Math.floor(Math.random() * emptyCells.length);
-      const [row, col] = emptyCells[index];
-      emptyCells.splice(index, 1);
-
-      // Haritaya yerleştir
-      buyAndPlace(itemId, row, col);
-    }
-  }, [selectedUserId, dashboard?.layer_2_learning?.unlocked_buildings, placedItems, buyAndPlace]);
-
-  // Yeşil alan skoru arttıkça otomatik ağaçlandırma
-  useEffect(() => {
-    if (!selectedUserId || !dashboard?.layer_3_green) return;
-
-    const currentUnlockedPlants = dashboard.layer_3_green.unlocked_plants || [];
-    const previousUnlockedPlants = unlockedPlantsRef.current || [];
-
-    // Yeni açılan ağaçlar bul
-    const newlyUnlockedPlants = currentUnlockedPlants.filter((itemId) => !previousUnlockedPlants.includes(itemId));
-
-    // Ref'i güncelle
-    unlockedPlantsRef.current = [...currentUnlockedPlants];
-
-    // Yeni ağaçlar varsa haritaya yerleştir
-    if (newlyUnlockedPlants.length === 0) return;
-
-    // Boş hücreler bul
-    const emptyCells = [];
-    for (let row = 0; row < 12; row++) {
-      for (let col = 0; col < 24; col++) {
-        if (!placedItems.has(`${row}_${col}`)) {
-          emptyCells.push([row, col]);
-        }
-      }
-    }
-
-    if (emptyCells.length === 0) return;
-
-    // Yeni ağaçlar için boş hücreler seç ve yerleştir
-    for (const itemId of newlyUnlockedPlants) {
-      if (emptyCells.length === 0) break;
-
-      // Rastgele boş hücre seç
-      const index = Math.floor(Math.random() * emptyCells.length);
-      const [row, col] = emptyCells[index];
-      emptyCells.splice(index, 1);
-
-      // Haritaya yerleştir
-      buyAndPlace(itemId, row, col);
-    }
-  }, [selectedUserId, dashboard?.layer_3_green?.unlocked_plants, placedItems, buyAndPlace]);
-
   // --- Quiz submit ---
 
   const submitQuiz = useCallback(async (questionId, selectedOptionId) => {
@@ -565,14 +418,12 @@ export function GameProvider({ children }) {
       if (data) {
         if (data.xp_earned > 0) setXP((prev) => prev + data.xp_earned);
         if (data.fp_earned > 0) setFinancialPoints((prev) => prev + data.fp_earned);
-        // Dashboard'ı güncelle
-        setTimeout(refreshDashboard, 300);
       }
       return data;
     } catch (err) {
       return { error: err.message };
     }
-  }, [selectedUserId, refreshDashboard]);
+  }, [selectedUserId]);
 
   // --- Disaster ---
 
@@ -594,14 +445,12 @@ export function GameProvider({ children }) {
           return next;
         });
       }
-      // Dashboard'ı güncelle
-      setTimeout(refreshDashboard, 300);
       return data;
     } catch {
       setFinancialPoints((prev) => Math.max(0, prev - 100));
       return null;
     }
-  }, [selectedUserId, refreshDashboard]);
+  }, [selectedUserId]);
 
   // --- Refresh dashboard ---
 

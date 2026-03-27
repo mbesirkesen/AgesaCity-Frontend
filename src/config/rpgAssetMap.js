@@ -15,15 +15,15 @@ const TILE_POOLS = {
 // Deger: string (src) veya {src, flipX:true} aynalama gereken tile icin
 const ROAD_TILE_MAP = {
   // 4 yönlü
-  '1111': tile(5),  // ┼  kavşak (cross)
+  '1111': tile(05),  // ┼  kavşak (cross)
   // 3 yönlü (T kesişim)
-  '0111': tile(6),  // ┬  T: D+L+R (üstü kapalı)
-  '1011': tile(7),  // ┴  T: U+L+R (altı kapalı)
+  '0111': tile(06),  // ┬  T: D+L+R (üstü kapalı)
+  '1011': tile(07),  // ┴  T: U+L+R (altı kapalı)
   '1101': tile(31),  // ├  T: U+D+R (sol kapalı)
   '1110': { src: tile(31), flipX: true },  // ┤  T: U+D+L (sağ kapalı) — tile(31) aynalama
   // 2 yönlü karşılıklı (düz)
-  '0011': tile(4),  // ─  yatay düz
-  '1100': tile(3),  // │  dikey düz
+  '0011': tile(04),  // ─  yatay düz
+  '1100': tile(03),  // │  dikey düz
   // 2 yönlü komşu (köşe)
   '0101': tile(21),  // ┌  köşe: D+R
   '0110': tile(18),  // ┐  köşe: D+L
@@ -35,7 +35,7 @@ const ROAD_TILE_MAP = {
   '0001': tile(33),  // ╶  solda bitiş, yol sağa devam
   '0010': tile(19),  // ╴  sağda bitiş, yol sola devam
   // 0 yönlü (izole)
-  '0000': tile(5),  // ●  tek başına
+  '0000': tile(05),  // ●  tek başına
 };
 
 // Structure klasoru: ev/bina tipleri
@@ -75,7 +75,7 @@ export function getTileForCell({ row, col, isRoad, hasUp, hasDown, hasLeft, hasR
 
   if (isRoad) {
     const key = `${hasUp ? 1 : 0}${hasDown ? 1 : 0}${hasLeft ? 1 : 0}${hasRight ? 1 : 0}`;
-    const entry = ROAD_TILE_MAP[key] || tile(4);
+    const entry = ROAD_TILE_MAP[key] || tile(04);
     if (typeof entry === 'object') return entry;
     return { src: entry, flipX: false };
   }
