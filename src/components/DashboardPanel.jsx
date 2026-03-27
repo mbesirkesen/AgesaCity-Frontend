@@ -4,6 +4,7 @@ import {
   CloudSun, Route, ShoppingBag, Building2,
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
+import { SHOP_ITEMS } from '../config/shopItems';
 
 function LayerCard({ icon: Icon, title, children }) {
   return (
@@ -94,9 +95,14 @@ export default function DashboardPanel() {
                 <div className="mt-2">
                   <p className="mb-1 text-xs font-medium text-[#8b7355]">Açılan binalar:</p>
                   <div className="flex flex-wrap gap-1">
-                    {(Array.isArray(layer2.unlocked_buildings) ? layer2.unlocked_buildings : []).map((b, i) => (
-                      <span key={i} className="rpg-badge">{b}</span>
-                    ))}
+                    {(Array.isArray(layer2.unlocked_buildings) ? layer2.unlocked_buildings : []).map((itemId, i) => {
+                      const item = SHOP_ITEMS.find((si) => si.id === itemId);
+                      return (
+                        <span key={i} className="rpg-badge">
+                          {item?.label || itemId}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -104,8 +110,8 @@ export default function DashboardPanel() {
                 <div className="mt-2 flex items-center gap-2 text-xs">
                   <Building2 className="h-3.5 w-3.5 text-[var(--gold)]" />
                   <span className="text-[var(--gold)]">
-                    Sıradaki: {layer2.next_building}
-                    {layer2.xp_to_next ? ` (${layer2.xp_to_next} XP)` : ''}
+                    Sıradaki: {SHOP_ITEMS.find((si) => si.id === layer2.next_building)?.label || layer2.next_building}
+                    {layer2.xp_to_next ? ` (${layer2.xp_to_next} puan)` : ''}
                   </span>
                 </div>
               )}
@@ -120,6 +126,30 @@ export default function DashboardPanel() {
               <ProgressBar value={layer3.green_score ?? 0} variant="green" />
               <StatRow label="Toplam Tasarruf" value={`${(layer3.total_saved_tl ?? 0).toLocaleString('tr-TR')} TL`} />
               <StatRow label="Yeşil Alan" value={`${layer3.green_area_m2 ?? 0} m²`} />
+              {layer3.unlocked_plants && (
+                <div className="mt-2">
+                  <p className="mb-1 text-xs font-medium text-[#8b7355]">Açılan ağaçlar:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(Array.isArray(layer3.unlocked_plants) ? layer3.unlocked_plants : []).map((itemId, i) => {
+                      const item = SHOP_ITEMS.find((si) => si.id === itemId);
+                      return (
+                        <span key={i} className="rpg-badge">
+                          {item?.label || itemId}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {layer3.next_plant && (
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  <Leaf className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">
+                    Sıradaki: {SHOP_ITEMS.find((si) => si.id === layer3.next_plant)?.label || layer3.next_plant}
+                    {layer3.plant_to_next ? ` (${layer3.plant_to_next} puan)` : ''}
+                  </span>
+                </div>
+              )}
               {Array.isArray(layer3.green_events) && layer3.green_events.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {layer3.green_events.map((event, i) => (

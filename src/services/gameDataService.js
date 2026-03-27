@@ -1,9 +1,9 @@
 import { mockGameData } from '../mocks/mockGameData';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8003';
-const USE_MOCK =
-  import.meta.env.VITE_USE_MOCK_DATA === 'true' ||
-  (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA !== 'false');
+const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+// Force backend API unless explicitly enabled with VITE_USE_MOCK_DATA=true
+// Development mode falls back to mock only on connection failure
 
 async function fetchJSON(path) {
   const res = await fetch(`${BASE_URL}${path}`);
@@ -34,9 +34,14 @@ async function deleteJSON(path, body) {
 // --- Initial data ---
 
 export async function loadGameData() {
-  if (USE_MOCK) return mockGameData;
+  // Only use mock if explicitly enabled
+  if (USE_MOCK) {
+    console.log('Using mock data (VITE_USE_MOCK_DATA=true)');
+    return mockGameData;
+  }
 
   try {
+    console.log(`Backend API: ${BASE_URL}`);
     const [users, spendings, scenarios, learningContents, quizzes, quizOptions] =
       await Promise.all([
         fetchJSON('/api/users?limit=5000'),
@@ -47,6 +52,7 @@ export async function loadGameData() {
         fetchJSON('/api/quiz-options'),
       ]);
 
+    console.log('Backend data loaded successfully');
     return {
       users,
       spendings,
@@ -57,7 +63,8 @@ export async function loadGameData() {
       personas: users,
     };
   } catch (err) {
-    console.warn('Backend baglantisi basarisiz, mock veriye donuluyor:', err.message);
+    console.error('Backend connection failed:', err.message);
+    console.warn('Falling back to mock data');
     return mockGameData;
   }
 }
