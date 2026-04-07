@@ -1,9 +1,15 @@
 import { motion } from 'framer-motion';
 import {
   BarChart3, GraduationCap, Leaf, PiggyBank,
-  CloudSun, Route, ShoppingBag, Building2,
+  CloudSun, Route, ShoppingBag, Building2, TreePine, MapPin,
 } from 'lucide-react';
+import { SHOP_ITEMS } from '../config/shopItems';
 import { useGame } from '../context/GameContext';
+
+const ITEM_LABEL_MAP = Object.fromEntries(SHOP_ITEMS.map((s) => [s.id, s.label]));
+function itemLabel(id) {
+  return ITEM_LABEL_MAP[id] || id;
+}
 
 function LayerCard({ icon: Icon, title, children }) {
   return (
@@ -63,6 +69,7 @@ export default function DashboardPanel() {
       </h2>
 
       <div className="grid gap-4 md:grid-cols-2">
+        {/* Layer 1: Şehir Zemini */}
         {layer1 && (
           <LayerCard icon={Route} title="Şehir Zemini">
             <div className="space-y-1">
@@ -81,21 +88,31 @@ export default function DashboardPanel() {
                   <span className="text-[var(--gold)]">{layer1.junk_shop_count} çöp dükkanı belirdi</span>
                 </div>
               )}
+              {layer1.city_bonus != null && (
+                <div className="mt-2 flex items-center gap-3 text-xs text-[#8b7355]">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Yerleşim: {layer1.placed_items_count ?? 0}
+                  </span>
+                  <span>Çeşitlilik: {layer1.district_variety ?? 0}</span>
+                  <span className="text-[var(--gold)]">Bonus: +{layer1.city_bonus}</span>
+                </div>
+              )}
             </div>
           </LayerCard>
         )}
 
+        {/* Layer 2: Eğitim */}
         {layer2 && (
           <LayerCard icon={GraduationCap} title="Eğitim İlerlemesi">
             <div className="space-y-1">
               <StatRow label="Eğitim Skoru" value={`${layer2.education_score ?? 0}/100`} />
               <ProgressBar value={layer2.education_score ?? 0} variant="blue" />
-              {layer2.unlocked_buildings && (
+              {Array.isArray(layer2.unlocked_buildings) && layer2.unlocked_buildings.length > 0 && (
                 <div className="mt-2">
                   <p className="mb-1 text-xs font-medium text-[#8b7355]">Açılan binalar:</p>
                   <div className="flex flex-wrap gap-1">
-                    {(Array.isArray(layer2.unlocked_buildings) ? layer2.unlocked_buildings : []).map((b, i) => (
-                      <span key={i} className="rpg-badge">{b}</span>
+                    {layer2.unlocked_buildings.map((b, i) => (
+                      <span key={i} className="rpg-badge">{itemLabel(b)}</span>
                     ))}
                   </div>
                 </div>
@@ -104,8 +121,8 @@ export default function DashboardPanel() {
                 <div className="mt-2 flex items-center gap-2 text-xs">
                   <Building2 className="h-3.5 w-3.5 text-[var(--gold)]" />
                   <span className="text-[var(--gold)]">
-                    Sıradaki: {layer2.next_building}
-                    {layer2.xp_to_next ? ` (${layer2.xp_to_next} XP)` : ''}
+                    Sıradaki: {itemLabel(layer2.next_building)}
+                    {layer2.xp_to_next ? ` (${layer2.xp_to_next} puan)` : ''}
                   </span>
                 </div>
               )}
@@ -113,6 +130,7 @@ export default function DashboardPanel() {
           </LayerCard>
         )}
 
+        {/* Layer 3: Yeşil Alan / Tasarruf */}
         {layer3 && (
           <LayerCard icon={Leaf} title="Tasarruf & Yeşil Alan">
             <div className="space-y-1">
@@ -120,6 +138,29 @@ export default function DashboardPanel() {
               <ProgressBar value={layer3.green_score ?? 0} variant="green" />
               <StatRow label="Toplam Tasarruf" value={`${(layer3.total_saved_tl ?? 0).toLocaleString('tr-TR')} TL`} />
               <StatRow label="Yeşil Alan" value={`${layer3.green_area_m2 ?? 0} m²`} />
+
+              {Array.isArray(layer3.unlocked_plants) && layer3.unlocked_plants.length > 0 && (
+                <div className="mt-2">
+                  <p className="mb-1 text-xs font-medium text-[#8b7355]">Açılan bitkiler:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {layer3.unlocked_plants.map((p, i) => (
+                      <span key={i} className="rpg-badge">
+                        <TreePine className="h-3 w-3" /> {itemLabel(p)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {layer3.next_plant && (
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  <TreePine className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">
+                    Sıradaki: {itemLabel(layer3.next_plant)}
+                    {layer3.plant_to_next ? ` (${layer3.plant_to_next} puan)` : ''}
+                  </span>
+                </div>
+              )}
+
               {Array.isArray(layer3.green_events) && layer3.green_events.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {layer3.green_events.map((event, i) => (
@@ -131,6 +172,7 @@ export default function DashboardPanel() {
           </LayerCard>
         )}
 
+        {/* Layer 4: BES Projeksiyonu */}
         {layer4 && (
           <LayerCard icon={PiggyBank} title="BES Projeksiyonu">
             <div className="space-y-1">

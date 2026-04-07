@@ -1,27 +1,18 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Receipt, X } from 'lucide-react';
+import { PiggyBank, Plus, X } from 'lucide-react';
 import { createSpending } from '../services/gameDataService';
 import { useGame } from '../context/GameContext';
 
-const CATEGORIES = [
-  'Market', 'Ulaşım', 'Eğlence', 'Yeme-İçme',
-  'Eğitim', 'Sağlık', 'Giyim', 'Faturalar', 'Diğer',
-];
-
-export default function SpendingForm() {
+export default function SavingsForm() {
   const {
     selectedUserId,
     refreshFromBackend,
-    spendFinancialPoints,
-    spendXP,
+    earnFinancialPoints,
+    earnXP,
   } = useGame();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Market');
-  const [subCategory, setSubCategory] = useState('');
-  const [spendType, setSpendType] = useState('ihtiyac'); // ihtiyac | keyfi
-  const [unexpected, setUnexpected] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -37,22 +28,23 @@ export default function SpendingForm() {
       await createSpending({
         user_id: selectedUserId,
         amount: numericAmount,
-        category,
-        sub_category: subCategory || null,
-        spend_type: spendType || null,
-        is_unexpected: unexpected,
+        category: 'Birikim',
+        sub_category: 'tasarruf',
+        spend_type: 'ihtiyac',
+        payment_method: 'transfer',
+        is_recurring: false,
+        is_unexpected: false,
+        budget_impact_level: 'low',
         date: new Date().toISOString().slice(0, 10),
       });
 
-      const fpPenalty = Math.min(3, Math.max(0, Math.round(numericAmount / 2500)));
-      const xpPenalty = Math.min(2, Math.max(0, Math.round(numericAmount / 5000)));
-      if (fpPenalty > 0) spendFinancialPoints(fpPenalty, 'Harcama', 'Harcama kaydi eklendi');
-      if (xpPenalty > 0) spendXP(xpPenalty);
+      const fpReward = Math.min(4, Math.max(0, Math.round(numericAmount / 2000)));
+      const xpReward = Math.min(2, Math.max(0, Math.round(numericAmount / 4000)));
+      if (fpReward > 0) earnFinancialPoints(fpReward, 'Birikim eklendi');
+      if (xpReward > 0) earnXP(xpReward, 'Birikim disiplini');
 
-      setResult({ ok: true, msg: `${amount} TL harcama eklendi. -${fpPenalty} FP, -${xpPenalty} XP` });
+      setResult({ ok: true, msg: `${amount} TL birikim eklendi. +${fpReward} FP, +${xpReward} XP` });
       setAmount('');
-      setSubCategory('');
-      setUnexpected(false);
       await refreshFromBackend({ includeStatic: true });
     } catch (err) {
       setResult({ ok: false, msg: err.message });
@@ -67,8 +59,8 @@ export default function SpendingForm() {
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 p-4 text-left"
       >
-        <Receipt className="h-5 w-5 text-[var(--gold)]" />
-        <span className="font-medieval text-sm font-semibold text-[var(--text-gold)]">Harcama Ekle</span>
+        <PiggyBank className="h-5 w-5 text-emerald-400" />
+        <span className="font-medieval text-sm font-semibold text-[var(--text-gold)]">Birikim Ekle</span>
         <span className="ml-auto text-[#8b7355]">{open ? '−' : '+'}</span>
       </button>
 
@@ -91,24 +83,13 @@ export default function SpendingForm() {
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="150"
+                  placeholder="500"
                   required
                   className="rpg-input w-full text-sm"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-[#8b7355]">Kategori</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="rpg-input w-full text-sm"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
+
+              <div className="flex items-end sm:col-span-2">
                 <button
                   type="submit"
                   disabled={submitting || !amount}
@@ -117,39 +98,6 @@ export default function SpendingForm() {
                   <Plus className="h-4 w-4" />
                   {submitting ? 'Ekleniyor...' : 'Ekle'}
                 </button>
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-[#8b7355]">Alt kategori (opsiyonel)</label>
-                <input
-                  value={subCategory}
-                  onChange={(e) => setSubCategory(e.target.value)}
-                  placeholder="ör. toplu / kafe / fatura"
-                  className="rpg-input w-full text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-[#8b7355]">Harcama tipi</label>
-                <select
-                  value={spendType}
-                  onChange={(e) => setSpendType(e.target.value)}
-                  className="rpg-input w-full text-sm"
-                >
-                  <option value="ihtiyac">İhtiyaç</option>
-                  <option value="keyfi">Keyfi</option>
-                </select>
-              </div>
-              <div className="flex items-end gap-2">
-                <label className="flex w-full items-center gap-2 rounded-md border border-[var(--border-wood)]/30 bg-black/10 px-3 py-2 text-xs text-[#cbb08a]">
-                  <input
-                    type="checkbox"
-                    checked={unexpected}
-                    onChange={(e) => setUnexpected(e.target.checked)}
-                  />
-                  Beklenmedik
-                </label>
               </div>
             </div>
 
@@ -178,3 +126,4 @@ export default function SpendingForm() {
     </section>
   );
 }
+

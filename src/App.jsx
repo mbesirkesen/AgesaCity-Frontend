@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { Coins, HeartPulse, Star, MapPin } from 'lucide-react';
+import { Coins, HeartPulse, Star, MapPin, Trophy, X } from 'lucide-react';
 import CityMap from './components/CityMap';
 import DashboardPanel from './components/DashboardPanel';
 import InventoryBar from './components/InventoryBar';
@@ -9,8 +9,12 @@ import LoginScreen from './components/LoginScreen';
 import ShopPanel from './components/ShopPanel';
 import SimulationOverlay from './components/SimulationOverlay';
 import SpendingForm from './components/SpendingForm';
+import SavingsForm from './components/SavingsForm';
 import { SHOP_ITEMS } from './config/shopItems';
 import { useGame } from './context/GameContext';
+import { createSpending } from './services/gameDataService';
+
+const LEADERBOARD_STORAGE_KEY = 'agesa_city_user_xp_map';
 
 function MetricCard({ icon: Icon, label, value, accent = 'gold' }) {
   const accentMap = {
@@ -42,6 +46,8 @@ function App() {
     buyAndPlace, placeItem, placedItems, inventory,
     runSimulation, triggerDisaster: triggerDisasterApi,
     dashboard,
+    applyInvestmentRewards,
+    refreshFromBackend,
   } = useGame();
 
   const [simulationValue, setSimulationValue] = useState(null);
@@ -50,8 +56,36 @@ function App() {
   const [manualDisaster, setManualDisaster] = useState(false);
   const [disasterReport, setDisasterReport] = useState(null);
   const [activeDragItem, setActiveDragItem] = useState(null);
+  const [withdrawnSavings, setWithdrawnSavings] = useState(0);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [leaderboardXPMap, setLeaderboardXPMap] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LEADERBOARD_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
 
   const disasterActive = manualDisaster || cityState.healthScore < 50;
+
+  // Kullanıcı değiştiğinde, önceki kullanıcıya ait geçici UI durumları taşınmasın.
+  useEffect(() => {
+    setSimulationValue(null);
+    setSimulationMsg('');
+    setDisasterPulse(0);
+    setManualDisaster(false);
+    setDisasterReport(null);
+    setActiveDragItem(null);
+    setWithdrawnSavings(0);
+  }, [selectedUserId]);
+
+  const simulationPrincipal = useMemo(
+    () => Math.max(0, Math.round((cityState.totalSavings || 0) - withdrawnSavings)),
+    [cityState.totalSavings, withdrawnSavings],
+  );
 
   const annualReturnAvg = useMemo(() => {
     if (!scenarios.length) return 0.12;
@@ -62,14 +96,85 @@ function App() {
     return sum / scenarios.length;
   }, [scenarios]);
 
-  async function handleDisaster() {
+  const healthScoreDisplay = useMemo(() => {
+    const score = Number(cityState.healthScore ?? 0);
+    if (!Number.isFinite(score)) return '0';
+    return score.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }, [cityState.healthScore]);
+
+  const safeLevel = useMemo(() => {
+    const parsed = Number(level);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(0, Math.floor(parsed));
+  }, [level]);
+
+  const safeXP = useMemo(() => {
+    const parsed = Number(xp);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(0, Math.round(parsed));
+  }, [xp]);
+
+  const safeFinancialPoints = useMemo(() => {
+    const parsed = Number(financialPoints);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(0, Math.round(parsed));
+  }, [financialPoints]);
+
+  const safePlacedCount = useMemo(() => {
+    if (placedItems instanceof Map) return placedItems.size;
+    if (Array.isArray(placedItems)) return placedItems.length;
+    return 0;
+  }, [placedItems]);
+
+  const xpLeaderboard = useMemo(() => {
+    return users
+      .map((user) => {
+        const fromLeaderboardMap = Number(leaderboardXPMap[user?.user_id]);
+        const rawXP = Number(
+          user?.total_xp ??
+          user?.xp ??
+          user?.xp_total ??
+          user?.experience_points ??
+          NaN,
+        );
+        const baseXP = Number.isFinite(rawXP) ? Math.max(0, Math.round(rawXP)) : null;
+        const userXP = Number.isFinite(fromLeaderboardMap)
+          ? Math.max(0, Math.round(fromLeaderboardMap))
+          : (user?.user_id === selectedUserId ? safeXP : baseXP);
+        return {
+          userId: user?.user_id || 'Bilinmeyen',
+          xp: userXP,
+        };
+      })
+      .sort((a, b) => {
+        const ax = Number.isFinite(a.xp) ? a.xp : -1;
+        const bx = Number.isFinite(b.xp) ? b.xp : -1;
+        return bx - ax;
+      });
+  }, [users, selectedUserId, safeXP, leaderboardXPMap]);
+
+  useEffect(() => {
+    if (!selectedUserId) return;
+    setLeaderboardXPMap((prev) => {
+      const next = { ...prev, [selectedUserId]: safeXP };
+      try {
+        localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  }, [selectedUserId, safeXP]);
+
+  async function handleDisaster(severity = 2, fpPenalty = null) {
     setManualDisaster(true);
     setDisasterPulse((prev) => prev + 1);
     setDisasterReport(null);
-    const result = await triggerDisasterApi(2);
+    const result = await triggerDisasterApi(severity, fpPenalty);
     if (result) {
       setDisasterReport({
-        fpLost: result.fp_penalty_applied ?? 0,
+        fpLost: result.fp_penalty_applied ?? fpPenalty ?? 0,
+        fpRequested: result.fp_penalty_requested ?? fpPenalty ?? 0,
         damaged: result.city_damage?.city_items_damaged ?? 0,
         removed: result.city_damage?.removed_items?.length ?? 0,
       });
@@ -84,7 +189,58 @@ function App() {
     } else if (result) {
       setSimulationValue(result.projected_fund_tl);
       setSimulationMsg('');
+      // Yatırım getirisine göre şehre otomatik ödül yerleşimi
+      await applyInvestmentRewards({
+        principal: simulationPrincipal,
+        futureValue: result.projected_fund_tl ?? 0,
+      });
     }
+  }
+
+  async function handleWithdrawSavings(payload) {
+    const currentPrincipal = Math.max(0, Math.round(Number(payload?.principal ?? simulationPrincipal) || 0));
+    const amountRaw = Math.max(0, Math.round(Number(payload?.amount) || 0));
+    const amount = Math.min(amountRaw, currentPrincipal);
+    if (!amount) return;
+
+    // Çekim: backend’e gerçek bir kayıt düşsün ki diğer metrikleri etkilesin
+    try {
+      await createSpending({
+        user_id: selectedUserId,
+        amount,
+        category: 'Birikim Çekme',
+        sub_category: 'cekme',
+        spend_type: 'keyfi',
+        payment_method: 'transfer',
+        is_recurring: false,
+        is_unexpected: true,
+        budget_impact_level: 'high',
+        date: new Date().toISOString().slice(0, 10),
+      });
+    } catch {
+      // kayıt atılamasa da felaket tetiklenebilir
+    }
+
+    const pct = currentPrincipal > 0 ? amount / currentPrincipal : (Number(payload?.pct) || 0);
+    const severity =
+      pct >= 0.75 ? 4 :
+        pct >= 0.5 ? 3 :
+          pct >= 0.25 ? 2 : 1;
+
+    // Çekilen miktar simülasyon anapara havuzundan düşsün.
+    setWithdrawnSavings((prev) => {
+      const maxWithdrawable = Math.max(0, Math.round(cityState.totalSavings || 0));
+      return Math.min(maxWithdrawable, prev + amount);
+    });
+
+    // 75% gibi yüksek çekimlerde ceza 0 kalmasın diye explicit fp_penalty gönder.
+    const requestedPenalty = Math.max(
+      15,
+      Math.round((amount / 2000) + (severity * 10)),
+    );
+
+    await handleDisaster(severity, requestedPenalty);
+    await refreshFromBackend({ includeStatic: true });
   }
 
   const sensors = useSensors(
@@ -163,18 +319,32 @@ function App() {
         >
           <section className="mx-auto max-w-6xl space-y-5">
             <header className="space-y-1">
-              <h1 className="font-medieval text-3xl font-bold text-[var(--text-gold)]">AgeSA City</h1>
-              <p className="text-sm text-[var(--text-light)] opacity-60">Şehrini inşa et, finansal geleceğini şekillendir.</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h1 className="font-medieval text-3xl font-bold text-[var(--text-gold)]">AgeSA City</h1>
+                  <p className="text-sm text-[var(--text-light)] opacity-60">Şehrini inşa et, finansal geleceğini şekillendir.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardOpen(true)}
+                  className="rpg-btn-sm flex items-center gap-1.5"
+                >
+                  <Trophy className="h-3.5 w-3.5" />
+                  XP Leaderboard
+                </button>
+              </div>
             </header>
 
             <hr className="rpg-divider" />
 
             {/* Metrikler */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <MetricCard icon={Star} label="Level" value={`${level} (${xp} XP)`} accent="gold" />
-              <MetricCard icon={Coins} label="Finansal Puan" value={`${financialPoints} FP`} accent="green" />
-              <MetricCard icon={HeartPulse} label="Sağlık Skoru" value={cityState.healthScore} accent="red" />
-              <MetricCard icon={MapPin} label="Haritadaki Bina" value={placedItems.size} accent="blue" />
+            <div className="sticky top-0 z-30 -mx-2 border-y border-[var(--border-wood)]/40 bg-[#120c05]/95 px-2 py-2 backdrop-blur-sm">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard icon={Star} label="Level" value={`${safeLevel} (${safeXP.toLocaleString('tr-TR')} XP)`} accent="gold" />
+                <MetricCard icon={Coins} label="Finansal Puan" value={`${safeFinancialPoints.toLocaleString('tr-TR')} FP`} accent="green" />
+                <MetricCard icon={HeartPulse} label="Sağlık Skoru" value={healthScoreDisplay} accent="red" />
+                <MetricCard icon={MapPin} label="Haritadaki Bina" value={safePlacedCount} accent="blue" />
+              </div>
             </div>
 
             {/* Envanter */}
@@ -187,6 +357,12 @@ function App() {
               <div className="rpg-panel-dark border-[var(--accent-red)] p-3 text-sm">
                 <p className="font-medieval font-semibold text-rose-400">Felaket Hasar Raporu</p>
                 <p className="text-rose-300">FP kaybı: -{disasterReport.fpLost} FP</p>
+                {disasterReport.fpRequested > disasterReport.fpLost && (
+                  <p className="text-amber-300">
+                    (İstenen ceza: -{disasterReport.fpRequested} FP, bakiye yetersiz olduğu için uygulanan: -{disasterReport.fpLost})
+                  </p>
+                )}
+                <p className="text-rose-300">Hasar gören bina: {disasterReport.damaged}</p>
                 {disasterReport.removed > 0 && (
                   <p className="text-rose-300">{disasterReport.removed} bina yıkıldı!</p>
                 )}
@@ -196,16 +372,19 @@ function App() {
 
             {/* Simülasyon */}
             <SimulationOverlay
-              principal={cityState.totalSavings}
+              principal={simulationPrincipal}
               annualReturnRaw={annualReturnAvg}
               healthScore={cityState.healthScore}
               onRunSimulation={handleSimulation}
-              onWithdrawSavings={handleDisaster}
+              onWithdrawSavings={handleWithdrawSavings}
               simulationMsg={simulationMsg}
             />
 
             {/* Harcama Ekleme */}
             <SpendingForm />
+
+            {/* Birikim Ekleme */}
+            <SavingsForm />
 
             {/* Dashboard Analizi */}
             <DashboardPanel />
@@ -234,6 +413,42 @@ function App() {
           </section>
         </div>
       </main>
+
+      {leaderboardOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-[var(--border-wood)]/50 bg-[#1a1207] p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-medieval text-lg font-semibold text-[var(--text-gold)]">XP Leaderboard</h2>
+              <button type="button" onClick={() => setLeaderboardOpen(false)} className="rpg-btn-sm">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {xpLeaderboard.length === 0 ? (
+                <p className="text-xs text-[#8b7355]">Henüz kullanıcı verisi yok.</p>
+              ) : (
+                xpLeaderboard.map((row, index) => (
+                  <div
+                    key={row.userId}
+                    className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
+                      row.userId === selectedUserId
+                        ? 'border-[var(--gold)]/60 bg-[var(--gold)]/10'
+                        : 'border-[var(--border-wood)]/30 bg-black/10'
+                    }`}
+                  >
+                    <span className="text-[var(--text-light)]">
+                      {index + 1}. {row.userId}
+                    </span>
+                    <span className="font-semibold text-[var(--text-gold)]">
+                      {Number.isFinite(row.xp) ? `${row.xp.toLocaleString('tr-TR')} XP` : 'Veri yok'}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sürükleme Overlay */}
       <DragOverlay>

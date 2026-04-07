@@ -1,9 +1,13 @@
 import { mockGameData } from '../mocks/mockGameData';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8003';
-const USE_MOCK =
-  import.meta.env.VITE_USE_MOCK_DATA === 'true' ||
-  (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA !== 'false');
+const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+
+function unwrapList(response) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.value)) return response.value;
+  return [];
+}
 
 async function fetchJSON(path) {
   const res = await fetch(`${BASE_URL}${path}`);
@@ -37,7 +41,7 @@ export async function loadGameData() {
   if (USE_MOCK) return mockGameData;
 
   try {
-    const [users, spendings, scenarios, learningContents, quizzes, quizOptions] =
+    const [usersRes, spendingsRes, scenariosRes, learningContentsRes, quizzesRes, quizOptionsRes] =
       await Promise.all([
         fetchJSON('/api/users?limit=5000'),
         fetchJSON('/api/spendings?limit=5000'),
@@ -46,6 +50,13 @@ export async function loadGameData() {
         fetchJSON('/api/quizzes'),
         fetchJSON('/api/quiz-options'),
       ]);
+
+    const users = unwrapList(usersRes);
+    const spendings = unwrapList(spendingsRes);
+    const scenarios = unwrapList(scenariosRes);
+    const learningContents = unwrapList(learningContentsRes);
+    const quizzes = unwrapList(quizzesRes);
+    const quizOptions = unwrapList(quizOptionsRes);
 
     return {
       users,
@@ -135,8 +146,12 @@ export async function runSimulationApi(userId) {
 
 // --- Disaster ---
 
-export async function triggerDisasterApi(userId, severity = 2) {
-  return postJSON('/api/disaster/trigger', { user_id: userId, severity });
+export async function triggerDisasterApi(userId, severity = 2, fpPenalty = null) {
+  const payload = { user_id: userId, severity };
+  if (typeof fpPenalty === 'number' && Number.isFinite(fpPenalty) && fpPenalty > 0) {
+    payload.fp_penalty = fpPenalty;
+  }
+  return postJSON('/api/disaster/trigger', payload);
 }
 
 // --- Spendings ---

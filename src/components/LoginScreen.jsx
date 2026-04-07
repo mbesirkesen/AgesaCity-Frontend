@@ -17,7 +17,8 @@ export default function LoginScreen() {
   }, [users, dropdownUserId]);
 
   function handleLogin() {
-    const userId = mode === 'select' ? dropdownUserId : manualUserId.trim();
+    const userIdRaw = mode === 'select' ? dropdownUserId : manualUserId.trim();
+    const userId = String(userIdRaw).trim().toUpperCase();
     if (!userId) return;
     setLogging(true);
     setSelectedUserId(userId);

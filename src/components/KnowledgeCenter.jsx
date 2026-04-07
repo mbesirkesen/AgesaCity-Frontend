@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, CheckCircle2, XCircle, ChevronRight, Trophy } from 'lucide-react';
+import { BookOpen, CheckCircle2, XCircle, ChevronRight, Trophy, Play, FileText, Tag } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 
 export default function KnowledgeCenter() {
   const { level, quizzes, quizOptions, learningContents, submitQuiz } = useGame();
   const towerUnlocked = level >= 5;
 
+  const [selectedModule, setSelectedModule] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [answered, setAnswered] = useState(false);
@@ -15,18 +16,54 @@ export default function KnowledgeCenter() {
   const [lastReward, setLastReward] = useState(null);
   const [expandedContent, setExpandedContent] = useState(null);
 
+  const modules = useMemo(() => {
+    const moduleMap = new Map();
+    for (const item of learningContents) {
+      const mid = item.module_id;
+      if (!moduleMap.has(mid)) {
+        moduleMap.set(mid, { id: mid, title: item.module_title || mid, contents: [] });
+      }
+      moduleMap.get(mid).contents.push(item);
+    }
+    for (const q of quizzes) {
+      const mid = q.module_id;
+      if (!moduleMap.has(mid)) {
+        moduleMap.set(mid, { id: mid, title: mid, contents: [] });
+      }
+    }
+    return [...moduleMap.values()].sort((a, b) => a.id.localeCompare(b.id));
+  }, [learningContents, quizzes]);
+
+  const activeModule = selectedModule || modules[0]?.id || null;
+
+  const filteredContents = useMemo(() => {
+    if (!activeModule) return learningContents;
+    return learningContents.filter((c) => c.module_id === activeModule);
+  }, [learningContents, activeModule]);
+
   const questionsWithOptions = useMemo(() => {
     if (!quizzes.length || !quizOptions.length) return [];
-    return quizzes.map((q) => ({
+    let filtered = quizzes;
+    if (activeModule) {
+      filtered = quizzes.filter((q) => q.module_id === activeModule);
+    }
+    return filtered.map((q) => ({
       ...q,
       options: quizOptions
         .filter((o) => o.question_id === q.question_id)
         .sort((a, b) => a.option_order - b.option_order),
     }));
-  }, [quizzes, quizOptions]);
+  }, [quizzes, quizOptions, activeModule]);
 
   const currentQuestion = questionsWithOptions[currentIndex] ?? null;
   const isCorrect = currentQuestion && selectedOption === currentQuestion.correct_option_id;
+
+  function handleModuleChange(moduleId) {
+    setSelectedModule(moduleId);
+    setCurrentIndex(0);
+    setSelectedOption(null);
+    setAnswered(false);
+  }
 
   async function handleAnswer(optionId) {
     if (answered) return;
@@ -52,6 +89,7 @@ export default function KnowledgeCenter() {
   }
 
   const hasQuizData = questionsWithOptions.length > 0;
+  const totalQuizCount = quizzes.length;
 
   return (
     <section className="rpg-panel-dark p-4">
@@ -59,6 +97,7 @@ export default function KnowledgeCenter() {
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-[var(--gold)]" />
           <h2 className="font-medieval text-lg font-semibold text-[var(--text-gold)]">Bilgi Merkezi</h2>
+          <span className="text-xs text-[#8b7355]">({totalQuizCount} soru, {learningContents.length} içerik)</span>
         </div>
         {totalAnswered > 0 && (
           <span className="rpg-badge">
@@ -67,14 +106,38 @@ export default function KnowledgeCenter() {
         )}
       </div>
 
+      {/* Modül Sekmeleri */}
+      {modules.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {modules.map((mod) => (
+            <button
+              key={mod.id}
+              onClick={() => handleModuleChange(mod.id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeModule === mod.id
+                  ? 'border border-[var(--border-wood)] bg-gradient-to-b from-[var(--gold)] to-[#b8860b] text-[#1a1207]'
+                  : 'border border-[var(--border-wood)]/30 text-[#8b7355] hover:text-[var(--text-light)]'
+              }`}
+            >
+              {mod.title}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Öğrenme İçerikleri */}
-      {learningContents.length > 0 && (
+      {filteredContents.length > 0 && (
         <div className="mb-4">
           <h3 className="mb-2 text-sm font-medium text-[#8b7355]">Öğrenme İçerikleri</h3>
           <ul className="grid gap-2 md:grid-cols-2">
-            {learningContents.slice(0, 6).map((item) => {
+            {filteredContents.map((item) => {
               const id = item.content_id || item.id;
               const isExpanded = expandedContent === id;
+              const isVideo = item.content_type === 'video';
+              const tags = typeof item.tags === 'string' && item.tags !== '0'
+                ? item.tags.split(';').filter(Boolean)
+                : [];
+
               return (
                 <li
                   key={id}
@@ -82,31 +145,58 @@ export default function KnowledgeCenter() {
                   onClick={() => setExpandedContent(isExpanded ? null : id)}
                 >
                   <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-[var(--text-light)]">{item.title}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        {isVideo
+                          ? <Play className="h-3.5 w-3.5 text-rose-400" />
+                          : <FileText className="h-3.5 w-3.5 text-[var(--gold)]" />
+                        }
+                        <p className="text-sm font-medium text-[var(--text-light)]">{item.title}</p>
+                      </div>
                       <div className="mt-0.5 flex items-center gap-2">
                         {item.module_title && (
                           <span className="text-[10px] text-[var(--gold)]">{item.module_title}</span>
                         )}
-                        <span className="text-xs text-[#8b7355]">{item.content_type || 'content'}</span>
-                        {item.estimated_time_min && (
+                        <span className={`text-xs ${isVideo ? 'text-rose-400' : 'text-[#8b7355]'}`}>
+                          {item.content_type || 'content'}
+                        </span>
+                        {item.estimated_time_min > 0 && (
                           <span className="text-[10px] text-[#8b7355]">{item.estimated_time_min} dk</span>
+                        )}
+                        {isVideo && item.video_duration_min > 0 && (
+                          <span className="text-[10px] text-rose-400/70">{item.video_duration_min} dk video</span>
                         )}
                       </div>
                     </div>
                     <ChevronRight className={`h-4 w-4 shrink-0 text-[#8b7355] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                   </div>
                   <AnimatePresence>
-                    {isExpanded && item.body_text && (
+                    {isExpanded && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <p className="mt-2 border-t border-[var(--border-wood)]/20 pt-2 text-xs leading-relaxed text-[var(--text-light)] opacity-70">
-                          {item.body_text}
-                        </p>
+                        {item.body_text && item.body_text !== '0' && (
+                          <p className="mt-2 border-t border-[var(--border-wood)]/20 pt-2 text-xs leading-relaxed text-[var(--text-light)] opacity-70">
+                            {item.body_text}
+                          </p>
+                        )}
+                        {isVideo && (
+                          <p className="mt-2 border-t border-[var(--border-wood)]/20 pt-2 text-xs text-rose-400/70">
+                            Video içerik (demo modunda metin özeti gösterilmektedir)
+                          </p>
+                        )}
+                        {tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {tags.map((tag, i) => (
+                              <span key={i} className="flex items-center gap-0.5 rounded bg-[var(--gold)]/10 px-1.5 py-0.5 text-[9px] text-[var(--gold)]">
+                                <Tag className="h-2 w-2" /> {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -123,6 +213,11 @@ export default function KnowledgeCenter() {
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--gold)]">
               Soru {currentIndex + 1} / {questionsWithOptions.length}
+              {currentQuestion?.difficulty > 0 && (
+                <span className="ml-2 text-[#8b7355]">
+                  (Zorluk: {'★'.repeat(currentQuestion.difficulty)}{'☆'.repeat(Math.max(0, 3 - currentQuestion.difficulty))})
+                </span>
+              )}
             </span>
             <span className="rpg-badge">
               +{currentQuestion?.xp || 10} XP
@@ -187,11 +282,6 @@ export default function KnowledgeCenter() {
                 {isCorrect && lastReward && (lastReward.xp > 0 || lastReward.fp > 0) && (
                   <p className="mt-1 text-xs font-semibold text-[var(--gold-light)]">
                     +{lastReward.xp} XP, +{lastReward.fp} FP kazandın!
-                  </p>
-                )}
-                {isCorrect && lastReward && lastReward.xp === 0 && lastReward.fp === 0 && (
-                  <p className="mt-1 text-xs text-emerald-400/70">
-                    Bu soruyu zaten doğru cevaplamıştın, tekrar ödül yok.
                   </p>
                 )}
               </motion.div>
